@@ -256,7 +256,7 @@ export async function GET(
   context: { params: { id: string } }
 ) {
   const { params } = context;
-  const id = await params.id;
+  const id = params.id;
 
   try {
     await connectToDatabase();
