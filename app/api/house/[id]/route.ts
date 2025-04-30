@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { connectToDatabase } from "@/lib/db-connect";
 import House from "@/lib/models/house.model";
 import { auth } from "@clerk/nextjs/server";
@@ -100,13 +101,8 @@ export async function PUT(
 ): Promise<NextResponse<ApiResponse>> {
   try {
     const { id } = await params;
-    const userId = (await auth()).userId;
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized", paymentId: "" },
-        { status: 401 }
-      );
-    }
+    // Use a hardcoded admin user ID instead of Clerk authentication
+    const userId = "admin-user-id"; // Hardcoded admin user ID
 
     await connectToDatabase();
     const existingHouse = await House.findById(id);
@@ -221,6 +217,38 @@ export async function PUT(
     console.error("House update error:", error);
     return NextResponse.json(
       { success: false, error: "Failed to update house", paymentId: "" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse<ApiResponse>> {
+  try {
+    const { id } = params;
+    await connectToDatabase();
+
+    const house = await House.findById(id);
+
+    if (!house) {
+      return NextResponse.json(
+        { success: false, error: "House not found" },
+        { status: 404 }
+      );
+    }
+
+    await House.findByIdAndDelete(id);
+
+    return NextResponse.json({
+      success: true,
+      message: "House deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting house:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to delete house" },
       { status: 500 }
     );
   }

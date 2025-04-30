@@ -25,6 +25,7 @@ const paymentSchema = new Schema(
     receiptUrl: {
       type: String,
       required: true,
+      default: "",
     },
     uploadedAt: {
       type: Date,

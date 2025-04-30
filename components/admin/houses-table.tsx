@@ -37,235 +37,44 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export type House = {
-  id: string;
-  address: string;
-  type: "apartment" | "house" | "villa";
-  bedrooms: number;
-  bathrooms: number;
-  listingType: "sale" | "rent";
+  _id: string;
+  name: string;
+  description: string;
+  advertisementType: "Rent" | "Sale";
   price: number;
-  status: "active" | "pending" | "inactive";
-  createdAt: string;
-  updatedAt: string;
+  paymentMethod: "Monthly" | "Quarterly" | "Annual";
+  bedroom: number;
+  parkingSpace: number;
+  bathroom: number;
+  size: number;
+  houseType: "House" | "Apartment" | "Guest House";
+  condition: string;
+  maintenance: string;
+  essentials: string[];
+  currency: string;
+  imageUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  paymentId: string;
+  visiblity: "Private" | "Public";
+  status: "Pending" | "Active";
 };
-
-const data: House[] = [
-  {
-    id: "HOUSE-1",
-    address: "123 Main St, Anytown, USA",
-    type: "house",
-    bedrooms: 3,
-    bathrooms: 2,
-    listingType: "sale",
-    price: 350000,
-    status: "active",
-    createdAt: "2023-01-15T09:24:00",
-    updatedAt: "2023-01-15T09:24:00",
-  },
-  {
-    id: "HOUSE-2",
-    address: "456 Elm St, Otherville, USA",
-    type: "apartment",
-    bedrooms: 2,
-    bathrooms: 1,
-    listingType: "rent",
-    price: 1500,
-    status: "active",
-    createdAt: "2023-01-14T11:32:00",
-    updatedAt: "2023-01-16T14:45:00",
-  },
-  {
-    id: "HOUSE-3",
-    address: "789 Oak Ave, Somewhere, USA",
-    type: "villa",
-    bedrooms: 5,
-    bathrooms: 4,
-    listingType: "sale",
-    price: 750000,
-    status: "pending",
-    createdAt: "2023-01-12T15:45:00",
-    updatedAt: "2023-01-12T15:45:00",
-  },
-];
-
-export const columns: ColumnDef<House>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "id",
-    header: "ID",
-    cell: ({ row }) => <div className="font-medium">{row.getValue("id")}</div>,
-  },
-  {
-    accessorKey: "address",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Address
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div>{row.getValue("address")}</div>,
-  },
-  {
-    accessorKey: "type",
-    header: "Type",
-    cell: ({ row }) => <div className="capitalize">{row.getValue("type")}</div>,
-  },
-  {
-    accessorKey: "bedrooms",
-    header: "Bedrooms",
-    cell: ({ row }) => <div>{row.getValue("bedrooms")}</div>,
-  },
-  {
-    accessorKey: "bathrooms",
-    header: "Bathrooms",
-    cell: ({ row }) => <div>{row.getValue("bathrooms")}</div>,
-  },
-  {
-    accessorKey: "listingType",
-    header: "Listing Type",
-    cell: ({ row }) => (
-      <Badge variant="outline">
-        {row.getValue("listingType") === "sale" ? "For Sale" : "For Rent"}
-      </Badge>
-    ),
-  },
-  {
-    accessorKey: "price",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Price
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => {
-      const amount = Number.parseFloat(row.getValue("price"));
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(amount);
-
-      return <div className="font-medium">{formatted}</div>;
-    },
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as
-        | "active"
-        | "pending"
-        | "inactive";
-      return (
-        <Badge
-          className={
-            status === "active"
-              ? "bg-green-500"
-              : status === "pending"
-              ? "bg-yellow-500"
-              : "bg-gray-500"
-          }
-        >
-          {status.charAt(0).toUpperCase() + status.slice(1)}
-        </Badge>
-      );
-    },
-  },
-  {
-    accessorKey: "updatedAt",
-    header: "Last Updated",
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("updatedAt"));
-      return <div>{date.toLocaleDateString()}</div>;
-    },
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => {
-      const house = row.original;
-      const status = house.status;
-
-      return (
-        <div className="flex items-center justify-end gap-2">
-          {status === "pending" && (
-            <>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                <Check className="h-4 w-4 text-green-500" />
-              </Button>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                <X className="h-4 w-4 text-red-500" />
-              </Button>
-            </>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(house.id)}
-              >
-                Copy ID
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>View details</DropdownMenuItem>
-              <DropdownMenuItem>Edit</DropdownMenuItem>
-              <DropdownMenuItem className="text-red-600">
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      );
-    },
-  },
-];
 
 interface HousesTableProps {
   listingType?: "sale" | "rent";
   pending?: boolean;
+  onApprove?: (id: string) => void;
+  onReject?: (id: string) => void;
 }
 
 export function HousesTable({
   listingType,
   pending = false,
+  onApprove,
+  onReject,
 }: HousesTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -274,23 +83,239 @@ export function HousesTable({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [houses, setHouses] = useState<House[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const router = useRouter();
+
+  useEffect(() => {
+    const fetchHouses = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/house");
+        if (!response.ok) {
+          throw new Error("Failed to fetch houses");
+        }
+        const data = await response.json();
+        setHouses(data);
+      } catch (error) {
+        console.error("Error fetching houses:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHouses();
+  }, []);
 
   const handleRowClick = (id: string) => {
     router.push(`/products/houses/${id}`);
   };
 
+  const columns: ColumnDef<House>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "_id",
+      header: "ID",
+      cell: ({ row }) => <div className="font-medium">{row.getValue("_id")}</div>,
+    },
+    {
+      accessorKey: "name",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Name
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => <div>{row.getValue("name")}</div>,
+    },
+    {
+      accessorKey: "houseType",
+      header: "Type",
+      cell: ({ row }) => <div className="capitalize">{row.getValue("houseType")}</div>,
+    },
+    {
+      accessorKey: "bedroom",
+      header: "Bedrooms",
+      cell: ({ row }) => <div>{row.getValue("bedroom")}</div>,
+    },
+    {
+      accessorKey: "bathroom",
+      header: "Bathrooms",
+      cell: ({ row }) => <div>{row.getValue("bathroom")}</div>,
+    },
+    {
+      accessorKey: "advertisementType",
+      header: "Listing Type",
+      cell: ({ row }) => (
+        <Badge variant="outline">
+          {row.getValue("advertisementType") === "Sale" ? "For Sale" : "For Rent"}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "price",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Price
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => {
+        const amount = Number.parseFloat(row.getValue("price"));
+        const currency = row.original.currency || "USD";
+        const formatted = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: currency,
+        }).format(amount);
+
+        return <div className="font-medium">{formatted}</div>;
+      },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const status = row.getValue("status") as "Active" | "Pending";
+        return (
+          <Badge
+            className={
+              status === "Active"
+                ? "bg-green-500"
+                : status === "Pending"
+                ? "bg-yellow-500"
+                : "bg-gray-500"
+            }
+          >
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "updatedAt",
+      header: "Last Updated",
+      cell: ({ row }) => {
+        const date = new Date(row.getValue("updatedAt") || "");
+        return <div>{date.toLocaleDateString()}</div>;
+      },
+    },
+    {
+      id: "actions",
+      enableHiding: false,
+      cell: ({ row }) => {
+        const house = row.original;
+        const status = house.status;
+
+        return (
+          <div className="flex items-center justify-end gap-2">
+            {status === "Pending" && (
+              <>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="h-8 w-8 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onApprove) onApprove(house._id);
+                  }}
+                >
+                  <Check className="h-4 w-4 text-green-500" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="h-8 w-8 p-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onReject) onReject(house._id);
+                  }}
+                >
+                  <X className="h-4 w-4 text-red-500" />
+                </Button>
+              </>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(house._id);
+                  }}
+                >
+                  Copy ID
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/products/houses/${house._id}`);
+                  }}
+                >
+                  View details
+                </DropdownMenuItem>
+                <DropdownMenuItem>Edit</DropdownMenuItem>
+                <DropdownMenuItem className="text-red-600">
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
+    },
+  ];
+
   const filteredData = React.useMemo(() => {
-    let filtered = [...data];
+    let filtered = [...houses];
     if (listingType) {
-      filtered = filtered.filter((house) => house.listingType === listingType);
+      filtered = filtered.filter((house) => 
+        house.advertisementType.toLowerCase() === listingType
+      );
     }
     if (pending) {
-      filtered = filtered.filter((house) => house.status === "pending");
+      filtered = filtered.filter((house) => house.status === "Pending");
     }
     return filtered;
-  }, [listingType, pending]);
+  }, [houses, listingType, pending]);
 
   const table = useReactTable({
     data: filteredData,
@@ -316,9 +341,9 @@ export function HousesTable({
       <div className="flex items-center py-4">
         <Input
           placeholder="Filter houses..."
-          value={(table.getColumn("address")?.getFilterValue() as string) ?? ""}
+          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
-            table.getColumn("address")?.setFilterValue(event.target.value)
+            table.getColumn("name")?.setFilterValue(event.target.value)
           }
           className="max-w-sm"
         />
@@ -370,13 +395,22 @@ export function HousesTable({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {loading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  Loading houses...
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                   className="cursor-pointer"
-                  onClick={() => handleRowClick(row.original.id)}
+                  onClick={() => handleRowClick(row.original._id)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -394,7 +428,7 @@ export function HousesTable({
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  No houses found.
                 </TableCell>
               </TableRow>
             )}
