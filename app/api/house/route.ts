@@ -25,18 +25,21 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("POST /api/houses called with body:", body);
     const {
-      name, userId, description, advertisementType, price, paymentMethod,
+      name, description, advertisementType, price, paymentMethod,
       bedroom, parkingSpace, bathroom, size, houseType, condition,
       maintenance, essentials, currency,
     } = body;
 
-    if (!name || !userId || !description || !advertisementType || !price || !paymentMethod || !bedroom || !parkingSpace || !bathroom || !size || !houseType) {
+    // Use hardcoded admin user ID
+    const userId = "admin-user-id";
+
+    if (!name || !description || !advertisementType || !price || !paymentMethod || !bedroom || !parkingSpace || !bathroom || !size || !houseType) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const newHouse = new House({
       name,
-      userId,
+      userId, // Use the hardcoded userId
       description,
       advertisementType,
       price,

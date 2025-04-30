@@ -73,6 +73,16 @@ async function uploadImage(
       }
     );
 
+    // Check if response is JSON
+    const contentType = response.headers.get("content-type");
+    if (!contentType || !contentType.includes("application/json")) {
+      console.error("cPanel API returned non-JSON response");
+      return { 
+        success: false, 
+        error: "Image upload service unavailable. Please try again later." 
+      };
+    }
+
     const data = await response.json();
 
     if (data.status === 0) {
@@ -99,14 +109,8 @@ export async function POST(
   req: NextRequest
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    // Verify user authentication
-    const userId = (await auth()).userId;
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized", paymentId: "" },
-        { status: 401 }
-      );
-    }
+    // Use a hardcoded admin user ID instead of Clerk authentication
+    const userId = "admin-user-id"; // Hardcoded admin user ID
 
     // Connect to database
     await connectToDatabase();
@@ -211,22 +215,22 @@ export async function POST(
     const result = await houseToSave.save();
     console.log("House saved successfully. ID:", result._id);
 
-    // Create payment record
-    await Payment.create({
-      paymentId,
-      servicePrice: Number(formData.get("servicePrice")),
-      receiptUrl: receiptUrl || "",
-      productId: result._id.toString(),
-      productType: "house",
-      userId,
-      uploadedAt: new Date(),
-    });
+    // // Create payment record
+    // await Payment.create({
+    //   paymentId,
+    //   servicePrice: Number(formData.get("servicePrice")),
+    //   receiptUrl: receiptUrl || "",
+    //   productId: result._id.toString(),
+    //   productType: "house",
+    //   userId,
+    //   uploadedAt: new Date(),
+    // });
 
     return NextResponse.json({
       success: true,
       message: "House created successfully",
       houseId: result._id.toString(),
-      paymentId,
+    
     });
   } catch (error) {
     console.error("House creation error:", error);

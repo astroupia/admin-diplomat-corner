@@ -1,6 +1,7 @@
 import type React from "react";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { SidebarProvider } from "@/components/admin/sidebar-provider";
+import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 import { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -20,12 +21,14 @@ export default function Layout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <SidebarProvider>
-          <div className="flex min-h-screen">
-            <AdminSidebar />
-            {children}
-          </div>
-        </SidebarProvider>
+        <ToastProvider>
+          <SidebarProvider>
+            <div className="flex min-h-screen">
+              <AdminSidebar />
+              {children}
+            </div>
+          </SidebarProvider>
+        </ToastProvider>
       </body>
     </html>
   );
