@@ -4,6 +4,7 @@ import { SidebarProvider } from "@/components/admin/sidebar-provider";
 import "./globals.css";
 import { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,15 +19,17 @@ export default function Layout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <SidebarProvider>
-          <div className="flex min-h-screen">
-            <AdminSidebar />
-            {children}
-          </div>
-        </SidebarProvider>
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body className={inter.className}>
+          <SidebarProvider>
+            <div className="flex min-h-screen">
+              <AdminSidebar />
+              {children}
+            </div>
+          </SidebarProvider>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

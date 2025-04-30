@@ -16,17 +16,20 @@ import {
   Menu,
   Package,
   MessageCircle,
+  UserCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { UserButton, useUser } from "@clerk/nextjs";
 
 export function AdminSidebar() {
   const pathname = usePathname();
   const { isOpen, toggle } = useSidebar();
+  const { user } = useUser();
 
   return (
     <div
       className={cn(
-        "fixed top-0 left-0 h-screen bg-white transition-all duration-300 z-50 border-r",
+        "fixed top-0 left-0 h-screen bg-white transition-all duration-300 z-50 border-r flex flex-col",
         isOpen ? "w-64" : "w-16"
       )}
     >
@@ -46,7 +49,7 @@ export function AdminSidebar() {
           )}
         </Button>
       </div>
-      <div className="space-y-1 py-4 overflow-y-auto overscroll-contain h-[calc(100dvh-4rem)]">
+      <div className="space-y-1 py-4 overflow-y-auto overscroll-contain flex-1">
         <NavItem
           href="/"
           icon={<LayoutDashboard className="h-5 w-5" />}
@@ -105,6 +108,26 @@ export function AdminSidebar() {
           isActive={pathname.startsWith("/messages")}
           isOpen={isOpen}
         />
+      </div>
+
+      {/* User Profile Section */}
+      <div className="mt-auto border-t p-4">
+        <div
+          className={cn(
+            "flex items-center",
+            isOpen ? "justify-between" : "justify-center"
+          )}
+        >
+          {isOpen && user && (
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-gray-800">
+                {user.fullName || user.username}
+              </span>
+              <span className="text-xs text-gray-500">Admin</span>
+            </div>
+          )}
+          <UserButton afterSignOutUrl="/sign-in" />
+        </div>
       </div>
     </div>
   );

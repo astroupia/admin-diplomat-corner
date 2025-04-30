@@ -5,10 +5,10 @@ import Payment from "@/lib/models/payment.model";
 import { auth } from "@clerk/nextjs/server";
 import { v4 as uuidv4 } from "uuid";
 
-const CPANEL_API_URL = "https://diplomatcorner.net:2083";
-const CPANEL_USERNAME = "diplomvv";
-const CPANEL_API_TOKEN = "2JL5W3RUMNY0KOX451GL2PPY4L8RX9RS";
-const PUBLIC_DOMAIN = "https://diplomatcorner.net";
+const CPANEL_API_URL = process.env.CPANEL_API_URL;
+const CPANEL_USERNAME = process.env.CPANEL_USERNAME;
+const CPANEL_API_TOKEN = process.env.CPANEL_API_TOKEN;
+const PUBLIC_DOMAIN = process.env.PUBLIC_DOMAIN;
 
 interface ApiResponse {
   success: boolean;

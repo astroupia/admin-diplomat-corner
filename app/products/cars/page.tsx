@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Car, Plus, Upload } from "lucide-react";
 import { CarsTable } from "@/components/admin/cars-table";
+import Link from "next/link";
 
 export default function CarsPage() {
   return (
@@ -12,14 +13,12 @@ export default function CarsPage() {
           Cars
         </h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
-            <Upload className="mr-2 h-4 w-4" />
-            Bulk Upload
-          </Button>
-          <Button variant="default">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Car
-          </Button>
+          <Link href="/products/cars/add">
+            <Button variant="default">
+              <Plus className="mr-2 h-4 w-4" />
+              Add Car
+            </Button>
+          </Link>
         </div>
       </div>
       <Tabs defaultValue="all" className="space-y-4">
