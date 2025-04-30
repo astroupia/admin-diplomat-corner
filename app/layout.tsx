@@ -32,17 +32,5 @@ export default function Layout({
         </body>
       </html>
     </ClerkProvider>
-    <html lang="en">
-      <body className={inter.className}>
-        <ToastProvider>
-          <SidebarProvider>
-            <div className="flex min-h-screen">
-              <AdminSidebar />
-              {children}
-            </div>
-          </SidebarProvider>
-        </ToastProvider>
-      </body>
-    </html>
   );
 }
