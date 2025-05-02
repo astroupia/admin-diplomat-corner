@@ -206,7 +206,7 @@ export default function CarDetailPage() {
     try {
       setDeleteLoading(true);
 
-      const response = await fetch(`/api/cars/${car?._id}`, {
+      const response = await fetch(`/api/cars/${car?._id}?isAdmin=true`, {
         method: "DELETE",
       });
 
