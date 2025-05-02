@@ -128,8 +128,8 @@ export async function PUT(
   request: NextRequest,
   context: { params: { id: string } }
 ) {
-  const { params } = context;
-  const id = params.id;
+  // Correct way to handle params in Next.js 14
+  const id = context.params.id;
 
   try {
     const formData = await request.formData();
@@ -358,8 +358,8 @@ export async function PATCH(
   request: NextRequest,
   context: { params: { id: string } }
 ) {
-  const { params } = context;
-  const id = params.id;
+  // Correct way to handle params in Next.js 14
+  const id = context.params.id;
 
   try {
     // For admin routes, make authentication optional
@@ -419,19 +419,38 @@ export async function DELETE(
   request: NextRequest,
   context: { params: { id: string } }
 ) {
-  const { params } = context;
-  const id = params.id;
+  // Correct way to handle params in Next.js 14
+  const id = context.params.id;
 
   try {
+    // Check if this is an admin request by looking for the isAdmin parameter
+    const url = new URL(request.url);
+    const isAdmin = url.searchParams.get("isAdmin") === "true";
+
     // For admin routes, make authentication optional
-    let userId = "admin-user";
-    try {
-      const authUser = await auth();
-      if (authUser.userId) {
-        userId = authUser.userId;
+    let userId = isAdmin ? "admin-user" : null;
+
+    if (!isAdmin) {
+      try {
+        const authUser = await auth();
+        if (authUser.userId) {
+          userId = authUser.userId;
+        }
+      } catch (error) {
+        console.log("Auth error:", error);
+        return NextResponse.json(
+          { success: false, error: "Authentication failed", paymentId: "" },
+          { status: 401 }
+        );
       }
-    } catch (error) {
-      console.log("Auth error, using default admin userId:", error);
+
+      // If not admin and no userId, return unauthorized
+      if (!userId) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized", paymentId: "" },
+          { status: 401 }
+        );
+      }
     }
 
     await connectToDatabase();
@@ -459,14 +478,20 @@ export async function DELETE(
     const deletePromises = [];
 
     // 1. Delete associated payment (if it exists)
-    try {
-      deletePromises.push(
-        Payment.deleteMany({
-          $or: [{ productId: id }, { paymentId: paymentId }],
-        })
+    if (paymentId && !paymentId.startsWith("admin-created-")) {
+      try {
+        deletePromises.push(
+          Payment.deleteMany({
+            $or: [{ productId: id }, { paymentId: paymentId }],
+          })
+        );
+      } catch (error) {
+        console.warn("Error deleting payments:", error);
+      }
+    } else {
+      console.log(
+        "Skipping payment deletion: Admin-created car without valid payment ID"
       );
-    } catch (error) {
-      console.warn("Error deleting payments:", error);
     }
 
     // 2. Delete associated reviews (if they exist)
@@ -522,8 +547,8 @@ export async function GET(
   request: NextRequest,
   context: { params: { id: string } }
 ) {
-  const { params } = context;
-  const id = params.id;
+  // Correct way to handle params in Next.js 14
+  const id = context.params.id;
 
   try {
     await connectToDatabase();

@@ -124,7 +124,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = await params;
+    const id = params.id;
+
     await connectToDatabase();
     const house = await House.findById(id);
 
@@ -150,7 +151,7 @@ export async function PUT(
   { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = await params;
+    const id = params.id;
 
     await connectToDatabase();
     const existingHouse = await House.findById(id);
@@ -359,7 +360,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = params;
+    // Correct way to handle params in Next.js 14
+    const id = params.id;
+
     await connectToDatabase();
 
     // First, find the house to get its paymentId
@@ -379,15 +382,21 @@ export async function DELETE(
     const deletePromises = [];
 
     // 1. Delete associated payment (if it exists)
-    try {
-      const Payment = (await import("@/lib/models/payment.model")).default;
-      deletePromises.push(
-        Payment.deleteMany({
-          $or: [{ productId: id }, { paymentId: paymentId }],
-        })
+    if (paymentId && !paymentId.startsWith("admin-created-")) {
+      try {
+        const Payment = (await import("@/lib/models/payment.model")).default;
+        deletePromises.push(
+          Payment.deleteMany({
+            $or: [{ productId: id }, { paymentId: paymentId }],
+          })
+        );
+      } catch (error) {
+        console.warn("Error importing Payment model:", error);
+      }
+    } else {
+      console.log(
+        "Skipping payment deletion: Admin-created house without valid payment ID"
       );
-    } catch (error) {
-      console.warn("Error importing Payment model:", error);
     }
 
     // 2. Delete associated reviews (if they exist)
@@ -440,7 +449,9 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { id } = params;
+    // Correct way to handle params in Next.js 14
+    const id = params.id;
+
     const { status } = await req.json();
 
     if (!status || !["Active", "Pending"].includes(status)) {

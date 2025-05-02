@@ -15,8 +15,8 @@ export async function PATCH(
   request: NextRequest,
   context: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
-  const { params } = context;
-  const id = params.id;
+  // Correct way to handle params in Next.js 14
+  const id = context.params.id;
 
   try {
     // For admin routes, make authentication optional

@@ -169,7 +169,7 @@ export function CarsTable({
       setDeleteLoading(true);
       setActionInProgress(carToDelete);
 
-      const response = await fetch(`/api/cars/${carToDelete}`, {
+      const response = await fetch(`/api/cars/${carToDelete}?isAdmin=true`, {
         method: "DELETE",
       });
 
