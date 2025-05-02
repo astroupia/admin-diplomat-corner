@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/db-connect";
 import Advertisement from "@/lib/models/advertisement.model";
 import { auth } from "@clerk/nextjs/server";
-import { headers } from "next/headers";
 
 interface ApiResponse {
   success: boolean;
@@ -14,12 +13,11 @@ interface ApiResponse {
 // POST handler - record a view for an advertisement
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
-  const { params } = context;
-  const id = params.id;
-
   try {
+    const id = params.id;
+
     // Get user ID from auth
     let userId = "anonymous";
     try {
@@ -33,10 +31,10 @@ export async function POST(
 
     // Get device info from request
     const userAgent = request.headers.get("user-agent") || "unknown";
-    const headersList = headers();
+    // Get IP address - only use request.headers
     const ipAddress =
-      headersList.get("x-forwarded-for") ||
       request.headers.get("x-real-ip") ||
+      request.headers.get("x-forwarded-for") ||
       "unknown";
 
     await connectToDatabase();

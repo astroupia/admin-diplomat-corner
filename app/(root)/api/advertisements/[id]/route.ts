@@ -18,12 +18,11 @@ interface ApiResponse {
 // GET handler - fetch a specific advertisement
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
-  const { params } = context;
-  const id = params.id;
-
   try {
+    const id = params.id;
+
     await connectToDatabase();
 
     const advertisement = await Advertisement.findById(id);
@@ -70,12 +69,11 @@ export async function GET(
 // PUT handler - update an advertisement
 export async function PUT(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
-  const { params } = context;
-  const id = params.id;
-
   try {
+    const id = params.id;
+
     // Authenticate user
     let userId = "admin-user";
     try {
@@ -130,12 +128,11 @@ export async function PUT(
 // DELETE handler - delete an advertisement
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
-  const { params } = context;
-  const id = params.id;
-
   try {
+    const id = params.id;
+
     // Authenticate user
     let userId = "admin-user";
     try {
