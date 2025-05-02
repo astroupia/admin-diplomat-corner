@@ -1,85 +1,171 @@
-import { Button } from "@/components/ui/button";
+"use client";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DollarSign, Plus } from "lucide-react";
+import { DollarSign } from "lucide-react";
 import { PaymentsTable } from "@/components/admin/payments-table";
+import { ChartContainer } from "@/components/ui/chart";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function PaymentsPage() {
+  const [payments, setPayments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPayments = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch("/api/payment");
+        const data = await res.json();
+        setPayments(Array.isArray(data) ? data : data.payments || []);
+      } catch (e) {
+        setPayments([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPayments();
+  }, []);
+
+  // Analytics
+  const totalPayments = payments.length;
+  const totalServiceCharge = payments.reduce((sum, p) => sum + (p.servicePrice || 0), 0);
+  const housePayments = payments.filter((p) => p.productType === "house");
+  const carPayments = payments.filter((p) => p.productType === "car");
+  const houseCount = housePayments.length;
+  const carCount = carPayments.length;
+  const housePercent = totalPayments ? ((houseCount / totalPayments) * 100).toFixed(1) : 0;
+  const carPercent = totalPayments ? ((carCount / totalPayments) * 100).toFixed(1) : 0;
+  const mostRecent = payments.length
+    ? new Date(Math.max(...payments.map((p) => new Date(p.uploadedAt).getTime())))
+    : null;
+  const uniqueUsers = new Set(payments.map((p) => p.userId)).size;
+  const avgServiceCharge = totalPayments ? (totalServiceCharge / totalPayments).toFixed(2) : 0;
+
+  // Prepare data for the last 12 months
+  const now = new Date();
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
+    return d;
+  });
+  const monthLabels = months.map((d) => d.toLocaleString("default", { month: "short", year: "2-digit" }));
+  const paymentsByMonth = months.map((month, idx) => {
+    const nextMonth = new Date(month.getFullYear(), month.getMonth() + 1, 1);
+    const count = payments.filter((p) => {
+      const date = new Date(p.uploadedAt);
+      return date >= month && date < nextMonth;
+    }).length;
+    const house = payments.filter((p) => {
+      const date = new Date(p.uploadedAt);
+      return p.productType === "house" && date >= month && date < nextMonth;
+    }).length;
+    const car = payments.filter((p) => {
+      const date = new Date(p.uploadedAt);
+      return p.productType === "car" && date >= month && date < nextMonth;
+    }).length;
+    return {
+      month: monthLabels[idx],
+      total: count,
+      house,
+      car,
+    };
+  });
+
+  const chartConfig = {
+    total: { label: "Total", color: "#16a34a" },
+    house: { label: "House", color: "#2563eb" },
+    car: { label: "Car", color: "#f59e42" },
+  };
+
   return (
-    <div className="main-content space-y-4 p-4 md:p-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight text-diplomat-green">
-          Payments
-        </h1>
-        <div className="flex items-center gap-2">
-          <Button variant="default">
-            <Plus className="mr-2 h-4 w-4" />
-            Add Payment
-          </Button>
-        </div>
+    <div className="main-content space-y-8 p-4 md:p-8">
+      <h1 className="text-3xl font-bold tracking-tight text-diplomat-green mb-4">
+        Payments Analytics
+      </h1>
+      <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalPayments}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Total Service Charge</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalServiceCharge} Birr</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">House Payments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{houseCount}</div>
+            <div className="text-xs text-muted-foreground">{housePercent}% of total</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Car Payments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{carCount}</div>
+            <div className="text-xs text-muted-foreground">{carPercent}% of total</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Most Recent Payment</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{mostRecent ? mostRecent.toLocaleDateString() : '-'}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Unique Users</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{uniqueUsers}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Average Service Charge</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{avgServiceCharge} Birr</div>
+          </CardContent>
+        </Card>
       </div>
-      <Tabs defaultValue="all" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all">All Payments</TabsTrigger>
-          <TabsTrigger value="pending">Pending Approval</TabsTrigger>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="rejected">Rejected</TabsTrigger>
-        </TabsList>
-        <TabsContent value="all" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Payments
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">1,248</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Pending Approval
-                </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">23</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Approved</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">1,200</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Rejected</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">25</div>
-              </CardContent>
-            </Card>
-          </div>
-          <PaymentsTable />
-        </TabsContent>
-        <TabsContent value="pending" className="space-y-4">
-          <PaymentsTable status="pending" />
-        </TabsContent>
-        <TabsContent value="approved" className="space-y-4">
-          <PaymentsTable status="approved" />
-        </TabsContent>
-        <TabsContent value="rejected" className="space-y-4">
-          <PaymentsTable status="rejected" />
-        </TabsContent>
-      </Tabs>
+      <div className="bg-white rounded-lg shadow p-4 mt-8">
+        <h2 className="text-lg font-semibold mb-2">Payments Per Month</h2>
+        <ChartContainer config={chartConfig} className="w-full h-[320px]">
+          <BarChart data={paymentsByMonth} margin={{ top: 30, right: 30, bottom: 50, left: 50 }}>
+            <XAxis dataKey="month" />
+            <YAxis allowDecimals={false} />
+            <RechartsTooltip />
+            <Legend />
+            <Bar dataKey="total" fill={chartConfig.total.color} name="Total" />
+            <Bar dataKey="house" fill={chartConfig.house.color} name="House" />
+            <Bar dataKey="car" fill={chartConfig.car.color} name="Car" />
+          </BarChart>
+        </ChartContainer>
+      </div>
+      <div className="mt-8">
+        <PaymentsTable data={payments} loading={loading} />
+      </div>
     </div>
   );
 }
