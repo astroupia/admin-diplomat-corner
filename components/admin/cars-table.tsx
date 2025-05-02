@@ -13,7 +13,17 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Check, MoreHorizontal, X } from "lucide-react";
+import {
+  ArrowUpDown,
+  Check,
+  MoreHorizontal,
+  X,
+  Copy,
+  Eye,
+  Edit as EditIcon,
+  Trash2,
+  Loader2,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,224 +47,50 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components//ui/badge";
 import { useRouter } from "next/navigation";
+import { useToast } from "@/components/ui/toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useState, useEffect } from "react";
 
 export type Car = {
-  id: string;
-  make: string;
-  model: string;
+  _id: string;
+  name: string;
   year: number;
-  listingType: "sale" | "rent";
+  mileage: number;
+  transmission: string;
+  bodyType: string;
+  fuel: string;
+  advertisementType: "Rent" | "Sale";
   price: number;
-  status: "active" | "pending" | "inactive";
-  createdAt: string;
-  updatedAt: string;
+  currency: string;
+  status: "Active" | "Pending";
+  createdAt?: string;
+  updatedAt?: string;
+  imageUrl?: string;
+  paymentId: string;
 };
 
-const data: Car[] = [
-  {
-    id: "CAR-1",
-    make: "Toyota",
-    model: "Camry",
-    year: 2022,
-    listingType: "sale",
-    price: 25000,
-    status: "active",
-    createdAt: "2023-01-15T09:24:00",
-    updatedAt: "2023-01-15T09:24:00",
-  },
-  {
-    id: "CAR-2",
-    make: "Honda",
-    model: "Civic",
-    year: 2021,
-    listingType: "rent",
-    price: 50,
-    status: "active",
-    createdAt: "2023-01-14T11:32:00",
-    updatedAt: "2023-01-16T14:45:00",
-  },
-  {
-    id: "CAR-3",
-    make: "Ford",
-    model: "F-150",
-    year: 2023,
-    listingType: "sale",
-    price: 45000,
-    status: "pending",
-    createdAt: "2023-01-12T15:45:00",
-    updatedAt: "2023-01-12T15:45:00",
-  },
-];
-
-export const columns: ColumnDef<Car>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "id",
-    header: "ID",
-    cell: ({ row }) => <div className="font-medium">{row.getValue("id")}</div>,
-  },
-  {
-    accessorKey: "make",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Make
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => <div>{row.getValue("make")}</div>,
-  },
-  {
-    accessorKey: "model",
-    header: "Model",
-    cell: ({ row }) => <div>{row.getValue("model")}</div>,
-  },
-  {
-    accessorKey: "year",
-    header: "Year",
-    cell: ({ row }) => <div>{row.getValue("year")}</div>,
-  },
-  {
-    accessorKey: "listingType",
-    header: "Listing Type",
-    cell: ({ row }) => (
-      <Badge variant="outline">
-        {row.getValue("listingType") === "sale" ? "For Sale" : "For Rent"}
-      </Badge>
-    ),
-  },
-  {
-    accessorKey: "price",
-    header: ({ column }) => {
-      return (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Price
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      );
-    },
-    cell: ({ row }) => {
-      const amount = Number.parseFloat(row.getValue("price"));
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(amount);
-
-      return <div className="font-medium">{formatted}</div>;
-    },
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as
-        | "active"
-        | "pending"
-        | "inactive";
-      return (
-        <Badge
-          className={
-            status === "active"
-              ? "bg-green-500"
-              : status === "pending"
-              ? "bg-yellow-500"
-              : "bg-gray-500"
-          }
-        >
-          {status.charAt(0).toUpperCase() + status.slice(1)}
-        </Badge>
-      );
-    },
-  },
-  {
-    accessorKey: "updatedAt",
-    header: "Last Updated",
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("updatedAt"));
-      return <div>{date.toLocaleDateString()}</div>;
-    },
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => {
-      const car = row.original;
-      const status = car.status;
-
-      return (
-        <div className="flex items-center justify-end gap-2">
-          {status === "pending" && (
-            <>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                <Check className="h-4 w-4 text-green-500" />
-              </Button>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                <X className="h-4 w-4 text-red-500" />
-              </Button>
-            </>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(car.id)}
-              >
-                Copy ID
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>View details</DropdownMenuItem>
-              <DropdownMenuItem>Edit</DropdownMenuItem>
-              <DropdownMenuItem className="text-red-600">
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      );
-    },
-  },
-];
-
 interface CarsTableProps {
-  listingType?: "sale" | "rent";
+  listingType?: "Sale" | "Rent";
   pending?: boolean;
+  onApprove?: (id: string) => void;
+  onReject?: (id: string) => void;
 }
 
-export function CarsTable({ listingType, pending = false }: CarsTableProps) {
+export function CarsTable({
+  listingType,
+  pending = false,
+  onApprove,
+  onReject,
+}: CarsTableProps) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -262,26 +98,344 @@ export function CarsTable({ listingType, pending = false }: CarsTableProps) {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [cars, setCars] = useState<Car[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [carToDelete, setCarToDelete] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   const router = useRouter();
+  const { showToast } = useToast();
 
-  const handleRowClick = (id: string) => {
+  const fetchCars = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/cars");
+      if (!response.ok) {
+        throw new Error("Failed to fetch cars");
+      }
+      const result = await response.json();
+
+      // Extract cars array from the API response
+      const data = result.cars || [];
+      console.log("Cars data for table:", data);
+
+      // Filter cars based on props
+      let filteredCars = data;
+      if (pending) {
+        filteredCars = data.filter((car: Car) => car.status === "Pending");
+      }
+      if (listingType) {
+        filteredCars = data.filter(
+          (car: Car) => car.advertisementType === listingType
+        );
+      }
+
+      setCars(filteredCars);
+    } catch (error) {
+      console.error("Error fetching cars:", error);
+      showToast("Failed to fetch cars", "error");
+      setCars([]); // Set empty array on error
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCars();
+  }, [listingType, pending]);
+
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    showToast("ID copied to clipboard", "success");
+  };
+
+  const handleViewDetails = (id: string) => {
     router.push(`/products/cars/${id}`);
   };
 
-  const filteredData = React.useMemo(() => {
-    let filtered = [...data];
-    if (listingType) {
-      filtered = filtered.filter((car) => car.listingType === listingType);
+  const handleEdit = (id: string) => {
+    router.push(`/products/cars/${id}/edit`);
+  };
+
+  const handleDelete = async () => {
+    if (!carToDelete) return;
+
+    try {
+      setDeleteLoading(true);
+      setActionInProgress(carToDelete);
+
+      const response = await fetch(`/api/cars/${carToDelete}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete car");
+      }
+
+      showToast("Car deleted successfully", "success");
+      fetchCars(); // Refresh the table
+    } catch (error) {
+      console.error("Error deleting car:", error);
+      showToast("Failed to delete car", "error");
+    } finally {
+      setDeleteLoading(false);
+      setActionInProgress(null);
+      setDeleteDialogOpen(false);
+      setCarToDelete(null);
     }
-    if (pending) {
-      filtered = filtered.filter((car) => car.status === "pending");
-    }
-    return filtered;
-  }, [listingType, pending]);
+  };
+
+  const confirmDelete = (id: string) => {
+    setCarToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const columns: ColumnDef<Car>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+          onClick={(e) => e.stopPropagation()}
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "_id",
+      header: "ID",
+      cell: ({ row }) => (
+        <div className="font-medium">{row.getValue("_id")}</div>
+      ),
+    },
+    {
+      accessorKey: "name",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Name
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => <div>{row.getValue("name")}</div>,
+    },
+    {
+      accessorKey: "year",
+      header: "Year",
+      cell: ({ row }) => <div>{row.getValue("year")}</div>,
+    },
+    {
+      accessorKey: "bodyType",
+      header: "Type",
+      cell: ({ row }) => (
+        <div className="capitalize">{row.getValue("bodyType")}</div>
+      ),
+    },
+    {
+      accessorKey: "transmission",
+      header: "Transmission",
+      cell: ({ row }) => <div>{row.getValue("transmission")}</div>,
+    },
+    {
+      accessorKey: "advertisementType",
+      header: "Listing Type",
+      cell: ({ row }) => (
+        <Badge variant="outline">
+          {row.getValue("advertisementType") === "Sale"
+            ? "For Sale"
+            : "For Rent"}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "price",
+      header: ({ column }) => {
+        return (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Price
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        );
+      },
+      cell: ({ row }) => {
+        const amount = Number.parseFloat(row.getValue("price"));
+        const currency = row.original.currency || "USD";
+        const formatted = new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: currency,
+        }).format(amount);
+
+        return <div className="font-medium">{formatted}</div>;
+      },
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const status = row.getValue("status") as "Active" | "Pending";
+        return (
+          <Badge
+            className={
+              status === "Active"
+                ? "bg-green-500"
+                : status === "Pending"
+                ? "bg-yellow-500"
+                : "bg-gray-500"
+            }
+          >
+            {status.charAt(0).toUpperCase() + status.slice(1)}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "updatedAt",
+      header: "Last Updated",
+      cell: ({ row }) => {
+        const date = new Date(
+          row.original.updatedAt || row.original.createdAt || ""
+        );
+        return <div>{date.toLocaleDateString()}</div>;
+      },
+    },
+    {
+      id: "actions",
+      enableHiding: false,
+      cell: ({ row }) => {
+        const car = row.original;
+        const status = car.status;
+        const isActionLoading = actionInProgress === car._id;
+
+        return (
+          <div className="flex items-center justify-end gap-2">
+            {status === "Pending" && onApprove && onReject && (
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 text-green-500"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onApprove(car._id);
+                  }}
+                  title="Approve"
+                  disabled={isActionLoading}
+                >
+                  {isActionLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 text-red-500"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onReject(car._id);
+                  }}
+                  title="Reject"
+                  disabled={isActionLoading}
+                >
+                  {isActionLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <X className="h-4 w-4" />
+                  )}
+                </Button>
+              </>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-8 w-8 p-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="sr-only">Open menu</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCopyId(car._id);
+                  }}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy ID
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleViewDetails(car._id);
+                  }}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  View Details
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit(car._id);
+                  }}
+                >
+                  <EditIcon className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    confirmDelete(car._id);
+                  }}
+                  className="text-red-600"
+                >
+                  {isActionLoading && carToDelete === car._id ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        );
+      },
+    },
+  ];
 
   const table = useReactTable({
-    data: filteredData,
+    data: cars,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -299,24 +453,38 @@ export function CarsTable({ listingType, pending = false }: CarsTableProps) {
     },
   });
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-lg">Loading cars...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       <div className="flex items-center py-4">
         <Input
           placeholder="Filter cars..."
-          value={(table.getColumn("make")?.getFilterValue() as string) ?? ""}
+          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
-            table.getColumn("make")?.setFilterValue(event.target.value)
+            table.getColumn("name")?.setFilterValue(event.target.value)
           }
           className="max-w-sm"
         />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Columns <ArrowUpDown className="ml-2 h-4 w-4" />
+            <Button
+              variant="outline"
+              className="ml-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Columns
+              <ArrowUpDown className="ml-2 h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
             {table
               .getAllColumns()
               .filter((column) => column.getCanHide())
@@ -329,6 +497,7 @@ export function CarsTable({ listingType, pending = false }: CarsTableProps) {
                     onCheckedChange={(value) =>
                       column.toggleVisibility(!!value)
                     }
+                    onClick={(e) => e.stopPropagation()}
                   >
                     {column.id}
                   </DropdownMenuCheckboxItem>
@@ -363,8 +532,8 @@ export function CarsTable({ listingType, pending = false }: CarsTableProps) {
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  onClick={() => handleViewDetails(row.original._id)}
                   className="cursor-pointer"
-                  onClick={() => handleRowClick(row.original.id)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -382,7 +551,7 @@ export function CarsTable({ listingType, pending = false }: CarsTableProps) {
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No results.
+                  No cars found.
                 </TableCell>
               </TableRow>
             )}
@@ -413,6 +582,41 @@ export function CarsTable({ listingType, pending = false }: CarsTableProps) {
           </Button>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the car
+              and all associated data (reviews, payments, etc).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -94,13 +94,13 @@ export function AdminSidebar() {
           isActive={pathname === "/payments"}
           isOpen={isOpen}
         />
-        <NavItem
+        {/* <NavItem
           href="/statistics"
           icon={<BarChart3 className="h-5 w-5" />}
           label="Statistics"
           isActive={pathname === "/statistics"}
           isOpen={isOpen}
-        />
+        /> */}
         <NavItem
           href="/messages"
           icon={<MessageCircle className="h-5 w-5" />}

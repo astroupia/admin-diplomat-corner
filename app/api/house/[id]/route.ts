@@ -114,13 +114,6 @@ export async function PUT(
       );
     }
 
-    if (existingHouse.userId !== userId) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized", paymentId: "" },
-        { status: 403 }
-      );
-    }
-
     const formData = await req.formData();
     const file = formData.get("file") as File;
     const receiptFile = formData.get("receipt") as File;
@@ -230,6 +223,7 @@ export async function DELETE(
     const { id } = params;
     await connectToDatabase();
 
+    // First, find the house to get its paymentId
     const house = await House.findById(id);
 
     if (!house) {
@@ -239,16 +233,64 @@ export async function DELETE(
       );
     }
 
-    await House.findByIdAndDelete(id);
+    // Get payment ID from the house
+    const paymentId = house.paymentId;
+
+    // Delete all associated data in parallel
+    const deletePromises = [];
+
+    // 1. Delete associated payment (if it exists)
+    try {
+      const Payment = (await import("@/lib/models/payment.model")).default;
+      deletePromises.push(
+        Payment.deleteMany({
+          $or: [{ productId: id }, { paymentId: paymentId }],
+        })
+      );
+    } catch (error) {
+      console.warn("Error importing Payment model:", error);
+    }
+
+    // 2. Delete associated reviews (if they exist)
+    try {
+      const Review = (await import("@/lib/models/review.model")).default;
+      deletePromises.push(Review.deleteMany({ productId: id }));
+    } catch (error) {
+      console.warn("Error importing Review model:", error);
+    }
+
+    // 3. Delete associated notifications (if they exist)
+    try {
+      const Notification = (await import("@/lib/models/notification.model"))
+        .default;
+      deletePromises.push(
+        Notification.deleteMany({
+          $or: [{ targetId: id }, { entityId: id }],
+        })
+      );
+    } catch (error) {
+      console.warn("Error importing Notification model:", error);
+    }
+
+    // 4. Add the house deletion to the promises
+    deletePromises.push(House.findByIdAndDelete(id));
+
+    // Execute all deletion operations
+    await Promise.all(deletePromises);
 
     return NextResponse.json({
       success: true,
-      message: "House deleted successfully",
+      message: "House and all associated data deleted successfully",
     });
   } catch (error) {
     console.error("Error deleting house:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to delete house" },
+      {
+        success: false,
+        error:
+          "Failed to delete house: " +
+          (error instanceof Error ? error.message : String(error)),
+      },
       { status: 500 }
     );
   }

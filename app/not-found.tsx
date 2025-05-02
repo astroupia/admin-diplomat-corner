@@ -57,7 +57,7 @@ export default function NotFound() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
+    <div className=" -content space-y-4 p-4 md:p-8 min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-3xl mx-auto">
         <motion.div
           className="text-center"

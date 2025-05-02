@@ -17,10 +17,6 @@ export default function HousesPage() {
               Add House
             </Link>
           </Button>
-          <Button variant="outline">
-            <Upload className="mr-2 h-4 w-4" />
-            Bulk Upload
-          </Button>
         </div>
       </div>
 

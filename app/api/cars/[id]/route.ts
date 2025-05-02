@@ -32,6 +32,10 @@ async function uploadImage(
   apiFormData.append("dir", `/public_html/${uploadFolder}/`);
   apiFormData.append("file-1", file, randomFileName);
 
+  if (!CPANEL_API_TOKEN) {
+    return { success: false, error: "CPanel API token is not configured" };
+  }
+
   const authHeader = `cpanel ${CPANEL_USERNAME}:${CPANEL_API_TOKEN.trim()}`;
 
   try {
@@ -198,6 +202,67 @@ export async function PUT(
   }
 }
 
+// PATCH handler for status updates
+export async function PATCH(
+  request: NextRequest,
+  context: { params: { id: string } }
+) {
+  const { params } = context;
+  const id = params.id;
+
+  try {
+    // For admin routes, make authentication optional
+    let userId = "admin-user";
+    try {
+      const authUser = await auth();
+      if (authUser.userId) {
+        userId = authUser.userId;
+      }
+    } catch (error) {
+      console.log("Auth error, using default admin userId:", error);
+    }
+
+    const data = await request.json();
+    const { status } = data;
+
+    // Validate status value
+    if (status !== "Active" && status !== "Pending") {
+      return NextResponse.json(
+        { success: false, error: "Invalid status value" },
+        { status: 400 }
+      );
+    }
+
+    await connectToDatabase();
+
+    // Find and update car status
+    const updatedCar = await Car.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedCar) {
+      return NextResponse.json(
+        { success: false, error: "Car not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Car status updated successfully",
+      car: updatedCar,
+    });
+  } catch (error) {
+    console.error("Car status update error:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to update car status" },
+      { status: 500 }
+    );
+  }
+}
+
 // DELETE handler
 export async function DELETE(
   request: NextRequest,
@@ -207,12 +272,15 @@ export async function DELETE(
   const id = params.id;
 
   try {
-    const userId = (await auth()).userId;
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized", paymentId: "" },
-        { status: 401 }
-      );
+    // For admin routes, make authentication optional
+    let userId = "admin-user";
+    try {
+      const authUser = await auth();
+      if (authUser.userId) {
+        userId = authUser.userId;
+      }
+    } catch (error) {
+      console.log("Auth error, using default admin userId:", error);
     }
 
     await connectToDatabase();
@@ -225,26 +293,74 @@ export async function DELETE(
       );
     }
 
-    if (car.userId !== userId) {
+    // Admin can delete any car, but regular users can only delete their own
+    if (userId !== "admin-user" && car.userId !== userId) {
       return NextResponse.json(
         { success: false, error: "Unauthorized", paymentId: "" },
         { status: 401 }
       );
     }
 
-    await Car.findByIdAndDelete(id);
-    await Payment.findOneAndDelete({ carId: id });
+    // Get payment ID from the car
+    const paymentId = car.paymentId;
+
+    // Delete all associated data in parallel
+    const deletePromises = [];
+
+    // 1. Delete associated payment (if it exists)
+    try {
+      deletePromises.push(
+        Payment.deleteMany({
+          $or: [{ productId: id }, { paymentId: paymentId }],
+        })
+      );
+    } catch (error) {
+      console.warn("Error deleting payments:", error);
+    }
+
+    // 2. Delete associated reviews (if they exist)
+    try {
+      const Review = (await import("@/lib/models/review.model")).default;
+      deletePromises.push(Review.deleteMany({ productId: id }));
+    } catch (error) {
+      console.warn("Error importing Review model:", error);
+    }
+
+    // 3. Delete associated notifications (if they exist)
+    try {
+      const Notification = (await import("@/lib/models/notification.model"))
+        .default;
+      deletePromises.push(
+        Notification.deleteMany({
+          $or: [{ targetId: id }, { entityId: id }],
+        })
+      );
+    } catch (error) {
+      console.warn("Error importing Notification model:", error);
+    }
+
+    // 4. Add the car deletion to the promises
+    deletePromises.push(Car.findByIdAndDelete(id));
+
+    // Execute all deletion operations
+    await Promise.all(deletePromises);
 
     return NextResponse.json({
       success: true,
-      message: "Car deleted successfully",
+      message: "Car and all associated data deleted successfully",
       carId: id,
       paymentId: car.paymentId,
     });
   } catch (error) {
     console.error("Car deletion error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to delete car", paymentId: "" },
+      {
+        success: false,
+        error:
+          "Failed to delete car: " +
+          (error instanceof Error ? error.message : String(error)),
+        paymentId: "",
+      },
       { status: 500 }
     );
   }
@@ -269,7 +385,10 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ success: true, ...car.toObject() });
+    return NextResponse.json({
+      success: true,
+      car: car.toObject(),
+    });
   } catch (error) {
     console.error("Error fetching car:", error);
     return NextResponse.json(

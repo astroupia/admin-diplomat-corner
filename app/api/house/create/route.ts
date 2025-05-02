@@ -29,7 +29,7 @@ interface HouseFormData {
   userId?: string;
   createdAt?: Date;
   paymentId: string;
-  visiblity: "Private" | "Public";
+  visibility: "Private" | "Public";
   status: "Pending" | "Active";
   paymentReceipt?: {
     url: string;
@@ -77,9 +77,9 @@ async function uploadImage(
     const contentType = response.headers.get("content-type");
     if (!contentType || !contentType.includes("application/json")) {
       console.error("cPanel API returned non-JSON response");
-      return { 
-        success: false, 
-        error: "Image upload service unavailable. Please try again later." 
+      return {
+        success: false,
+        error: "Image upload service unavailable. Please try again later.",
       };
     }
 
@@ -109,10 +109,7 @@ export async function POST(
   req: NextRequest
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    // Use a hardcoded admin user ID instead of Clerk authentication
-    const userId = "admin-user-id"; // Hardcoded admin user ID
-
-    // Connect to database
+    // Connect to database first
     await connectToDatabase();
 
     // Parse form data
@@ -120,46 +117,72 @@ export async function POST(
     const file = formData.get("file") as File;
     const receiptFile = formData.get("receipt") as File;
 
+    // Get userId - either from auth or form data for admin
+    let userId = (formData.get("userId") as string) || "admin-user";
+    try {
+      const authUserId = (await auth()).userId;
+      if (authUserId) {
+        userId = authUserId;
+      }
+    } catch (error) {
+      console.log("Auth error, using default userId:", error);
+    }
+
     // Generate payment ID
-    const paymentId = `${Date.now()}-${uuidv4()}`;
+    const paymentId =
+      (formData.get("paymentId") as string) || `${Date.now()}-${uuidv4()}`;
+
+    // Parse essentials properly
+    let essentials: string[] = [];
+    try {
+      const essentialsString = formData.get("essentials") as string;
+      if (essentialsString) {
+        essentials = JSON.parse(essentialsString);
+      }
+    } catch (e) {
+      console.error("Error parsing essentials:", e);
+      // Continue with empty array
+    }
+
+    // Get visibility setting
+    const visibilitySetting =
+      (formData.get("visibility") as "Private" | "Public") || "Public";
 
     const houseData: HouseFormData = {
       name: formData.get("name") as string,
-      bedroom: Number(formData.get("bedroom")),
-      size: Number(formData.get("size")),
-      bathroom: Number(formData.get("bathroom")),
-      parkingSpace: Number(formData.get("parkingSpace")), // Added parkingSpace
-      condition: formData.get("condition") as string,
-      maintenance: formData.get("maintenance") as string,
-      price: Number(formData.get("price")),
+      bedroom: Number(formData.get("bedroom") || 0),
+      size: Number(formData.get("size") || 0),
+      bathroom: Number(formData.get("bathroom") || 0),
+      parkingSpace: Number(formData.get("parkingSpace") || 0),
+      condition: (formData.get("condition") as string) || "",
+      maintenance: (formData.get("maintenance") as string) || "",
+      price: Number(formData.get("price") || 0),
       description: formData.get("description") as string,
-      advertisementType: formData.get("advertisementType") as "Rent" | "Sale",
-      paymentMethod: formData.get("paymentMethod") as
-        | "Monthly"
-        | "Quarterly"
-        | "Annual",
-      houseType: formData.get("houseType") as
-        | "House"
-        | "Apartment"
-        | "Guest House",
-      essentials: JSON.parse(formData.get("essentials") as string),
-      currency: formData.get("currency") as string,
+      advertisementType:
+        (formData.get("advertisementType") as "Rent" | "Sale") || "Sale",
+      paymentMethod:
+        (formData.get("paymentMethod") as "Monthly" | "Quarterly" | "Annual") ||
+        "Monthly",
+      houseType:
+        (formData.get("houseType") as "House" | "Apartment" | "Guest House") ||
+        "House",
+      essentials: essentials,
+      currency: (formData.get("currency") as string) || "USD",
       userId,
       createdAt: new Date(),
       paymentId,
-      visiblity: "Private",
-      status: "Pending",
+      visibility: visibilitySetting,
+      status: (formData.get("status") as "Pending" | "Active") || "Pending",
     };
 
     // Validate required fields
     if (
       !houseData.name ||
-      !houseData.bedroom ||
-      !houseData.size ||
-      !houseData.bathroom ||
-      !houseData.parkingSpace ||
       !houseData.price ||
-      !houseData.description
+      !houseData.description ||
+      !houseData.advertisementType ||
+      !houseData.houseType ||
+      !houseData.currency
     ) {
       return NextResponse.json(
         { success: false, error: "Missing required fields", paymentId: "" },
@@ -204,6 +227,9 @@ export async function POST(
     const houseToSave = new House({
       ...houseData,
       imageUrl,
+      // Explicitly set both visibility fields
+      visibility: visibilitySetting,
+      visiblity: visibilitySetting, // Include the misspelled version for compatibility
       paymentReceipt: receiptUrl
         ? {
             url: receiptUrl,
@@ -212,30 +238,32 @@ export async function POST(
           }
         : undefined,
     });
+
+    console.log("Saving house with data:", {
+      name: houseToSave.name,
+      visibility: houseToSave.visibility,
+      visiblity: houseToSave.visiblity,
+      status: houseToSave.status,
+    });
+
     const result = await houseToSave.save();
     console.log("House saved successfully. ID:", result._id);
-
-    // // Create payment record
-    // await Payment.create({
-    //   paymentId,
-    //   servicePrice: Number(formData.get("servicePrice")),
-    //   receiptUrl: receiptUrl || "",
-    //   productId: result._id.toString(),
-    //   productType: "house",
-    //   userId,
-    //   uploadedAt: new Date(),
-    // });
 
     return NextResponse.json({
       success: true,
       message: "House created successfully",
       houseId: result._id.toString(),
-    
     });
   } catch (error) {
     console.error("House creation error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to create house", paymentId: "" },
+      {
+        success: false,
+        error:
+          "Failed to create house: " +
+          (error instanceof Error ? error.message : String(error)),
+        paymentId: "",
+      },
       { status: 500 }
     );
   }

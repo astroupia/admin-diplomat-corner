@@ -291,14 +291,14 @@ const ManageCar: React.FC<ManageCarProps> = ({
     >
       <MaxWidthWrapper>
         <div className="py-6 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-6">
+          {/* <h1 className="text-2xl font-bold text-gray-900 mb-6">
             {isEditMode ? "Edit Car" : "Create Cars"}
-          </h1>
+          </h1> */}
 
           {/* Main Content */}
           <main className="flex-1 bg-white rounded-xl shadow-sm p-6 border border-gray-200">
             {/* Navigation Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+            {/* <div className="flex flex-col sm:flex-row gap-3 mb-6">
               {isEditMode ? (
                 <button
                   onClick={() => router.back()}
@@ -315,7 +315,7 @@ const ManageCar: React.FC<ManageCarProps> = ({
                   </button>
                 </Link>
               )}
-            </div>
+            </div> */}
 
             {/* Form Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

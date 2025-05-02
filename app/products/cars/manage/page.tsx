@@ -1,12 +1,12 @@
 "use client";
 
-import ManageHouse from "@/components/manage-house";
+import ManageCar from "@/components/manage-car";
 import MaxWidthWrapper from "@/components/max-width-wrapper";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
-export default function AddHousePage() {
+export default function AddCarPage() {
   const router = useRouter();
 
   return (
@@ -22,10 +22,10 @@ export default function AddHousePage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-2xl font-bold text-diplomat-green">
-            Add New House
+            Add New Car
           </h1>
         </div>
-        <ManageHouse />
+        <ManageCar />
       </MaxWidthWrapper>
     </main>
   );

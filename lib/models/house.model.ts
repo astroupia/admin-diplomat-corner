@@ -7,21 +7,22 @@ export interface IHouse {
   description: string;
   advertisementType: "Rent" | "Sale";
   price: number;
-  paymentMethod: "Monthly" | "Quarterly" | "Annual";
-  bedroom: number;
-  parkingSpace: number;
-  bathroom: number;
-  size: number;
+  paymentMethod?: "Monthly" | "Quarterly" | "Annual";
+  bedroom?: number;
+  parkingSpace?: number;
+  bathroom?: number;
+  size?: number;
   houseType: "House" | "Apartment" | "Guest House";
-  condition: string;
-  maintenance: string;
-  essentials: string[];
+  condition?: string;
+  maintenance?: string;
+  essentials?: string[];
   currency: string;
   imageUrl?: string;
   createdAt?: Date;
   updatedAt?: Date;
   paymentId: string;
-  visiblity: "Private" | "Public";
+  visibility: "Private" | "Public";
+  visiblity?: "Private" | "Public";
   status: "Pending" | "Active";
 }
 
@@ -34,22 +35,23 @@ const houseSchema = new Schema(
     price: { type: Number, required: true },
     paymentMethod: {
       type: String,
-      required: true,
+      required: false,
       enum: ["Monthly", "Quarterly", "Annual"],
+      default: "Monthly",
     },
-    bedroom: { type: Number, required: true },
-    parkingSpace: { type: Number, required: true },
-    bathroom: { type: Number, required: true },
-    size: { type: Number, required: true },
+    bedroom: { type: Number, default: 0 },
+    parkingSpace: { type: Number, default: 0 },
+    bathroom: { type: Number, default: 0 },
+    size: { type: Number, default: 0 },
     houseType: {
       type: String,
       required: true,
       enum: ["House", "Apartment", "Guest House"],
     },
-    condition: { type: String },
-    maintenance: { type: String },
+    condition: { type: String, default: "" },
+    maintenance: { type: String, default: "" },
     essentials: [{ type: String }],
-    currency: { type: String },
+    currency: { type: String, required: true, default: "USD" },
     imageUrl: { type: String },
     paymentId: {
       type: String,
@@ -59,15 +61,18 @@ const houseSchema = new Schema(
       type: String,
       required: true,
       enum: ["Private", "Public"],
+      default: "Public",
     },
     status: {
       type: String,
       required: true,
       enum: ["Pending", "Active"],
+      default: "Pending",
     },
   },
   { timestamps: true }
 );
+
 houseSchema.index({ name: "text", description: "text" });
 
 export default mongoose.models.House ||

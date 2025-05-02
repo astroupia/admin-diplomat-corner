@@ -13,7 +13,17 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Check, MoreHorizontal, X } from "lucide-react";
+import {
+  ArrowUpDown,
+  Check,
+  Copy,
+  MoreHorizontal,
+  X,
+  Eye,
+  Edit as EditIcon,
+  Trash2,
+  Loader2,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,6 +48,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useToast } from "@/components/ui/toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export type House = {
   _id: string;
@@ -85,31 +106,98 @@ export function HousesTable({
   const [rowSelection, setRowSelection] = React.useState({});
   const [houses, setHouses] = useState<House[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [houseToDelete, setHouseToDelete] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   const router = useRouter();
+  const { showToast } = useToast();
+
+  const fetchHouses = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/house");
+      if (!response.ok) {
+        throw new Error("Failed to fetch houses");
+      }
+      const data = await response.json();
+
+      // Filter houses based on props
+      let filteredHouses = data;
+      if (pending) {
+        filteredHouses = data.filter(
+          (house: House) => house.status === "Pending"
+        );
+      }
+      if (listingType === "sale") {
+        filteredHouses = data.filter(
+          (house: House) => house.advertisementType === "Sale"
+        );
+      }
+      if (listingType === "rent") {
+        filteredHouses = data.filter(
+          (house: House) => house.advertisementType === "Rent"
+        );
+      }
+
+      setHouses(filteredHouses);
+    } catch (error) {
+      console.error("Error fetching houses:", error);
+      showToast("Failed to fetch houses", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchHouses = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch("/api/house");
-        if (!response.ok) {
-          throw new Error("Failed to fetch houses");
-        }
-        const data = await response.json();
-        setHouses(data);
-      } catch (error) {
-        console.error("Error fetching houses:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchHouses();
-  }, []);
+  }, [listingType, pending]);
 
-  const handleRowClick = (id: string) => {
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    showToast("ID copied to clipboard", "success");
+  };
+
+  const handleViewDetails = (id: string) => {
     router.push(`/products/houses/${id}`);
+  };
+
+  const handleEdit = (id: string) => {
+    router.push(`/products/houses/${id}/edit`);
+  };
+
+  const handleDelete = async () => {
+    if (!houseToDelete) return;
+
+    try {
+      setDeleteLoading(true);
+      setActionInProgress(houseToDelete);
+
+      const response = await fetch(`/api/house/${houseToDelete}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete house");
+      }
+
+      showToast("House deleted successfully", "success");
+      fetchHouses(); // Refresh the table
+    } catch (error) {
+      console.error("Error deleting house:", error);
+      showToast("Failed to delete house", "error");
+    } finally {
+      setDeleteLoading(false);
+      setActionInProgress(null);
+      setDeleteDialogOpen(false);
+      setHouseToDelete(null);
+    }
+  };
+
+  const confirmDelete = (id: string) => {
+    setHouseToDelete(id);
+    setDeleteDialogOpen(true);
   };
 
   const columns: ColumnDef<House>[] = [
@@ -130,6 +218,7 @@ export function HousesTable({
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"
+          onClick={(e) => e.stopPropagation()}
         />
       ),
       enableSorting: false,
@@ -138,7 +227,9 @@ export function HousesTable({
     {
       accessorKey: "_id",
       header: "ID",
-      cell: ({ row }) => <div className="font-medium">{row.getValue("_id")}</div>,
+      cell: ({ row }) => (
+        <div className="font-medium">{row.getValue("_id")}</div>
+      ),
     },
     {
       accessorKey: "name",
@@ -158,7 +249,9 @@ export function HousesTable({
     {
       accessorKey: "houseType",
       header: "Type",
-      cell: ({ row }) => <div className="capitalize">{row.getValue("houseType")}</div>,
+      cell: ({ row }) => (
+        <div className="capitalize">{row.getValue("houseType")}</div>
+      ),
     },
     {
       accessorKey: "bedroom",
@@ -175,7 +268,9 @@ export function HousesTable({
       header: "Listing Type",
       cell: ({ row }) => (
         <Badge variant="outline">
-          {row.getValue("advertisementType") === "Sale" ? "For Sale" : "For Rent"}
+          {row.getValue("advertisementType") === "Sale"
+            ? "For Sale"
+            : "For Rent"}
         </Badge>
       ),
     },
@@ -227,7 +322,9 @@ export function HousesTable({
       accessorKey: "updatedAt",
       header: "Last Updated",
       cell: ({ row }) => {
-        const date = new Date(row.getValue("updatedAt") || "");
+        const date = new Date(
+          row.original.updatedAt || row.original.createdAt || ""
+        );
         return <div>{date.toLocaleDateString()}</div>;
       },
     },
@@ -237,63 +334,104 @@ export function HousesTable({
       cell: ({ row }) => {
         const house = row.original;
         const status = house.status;
+        const isActionLoading = actionInProgress === house._id;
 
         return (
           <div className="flex items-center justify-end gap-2">
-            {status === "Pending" && (
+            {status === "Pending" && onApprove && onReject && (
               <>
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  className="h-8 w-8 p-0"
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 text-green-500"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onApprove) onApprove(house._id);
+                    onApprove(house._id);
                   }}
+                  title="Approve"
+                  disabled={isActionLoading}
                 >
-                  <Check className="h-4 w-4 text-green-500" />
+                  {isActionLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
                 </Button>
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  className="h-8 w-8 p-0"
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 text-red-500"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (onReject) onReject(house._id);
+                    onReject(house._id);
                   }}
+                  title="Reject"
+                  disabled={isActionLoading}
                 >
-                  <X className="h-4 w-4 text-red-500" />
+                  {isActionLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <X className="h-4 w-4" />
+                  )}
                 </Button>
               </>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
+                <Button
+                  variant="ghost"
+                  className="h-8 w-8 p-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <span className="sr-only">Open menu</span>
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent
+                align="end"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <DropdownMenuLabel>Actions</DropdownMenuLabel>
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigator.clipboard.writeText(house._id);
+                    handleCopyId(house._id);
                   }}
                 >
+                  <Copy className="mr-2 h-4 w-4" />
                   Copy ID
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={(e) => {
                     e.stopPropagation();
-                    router.push(`/products/houses/${house._id}`);
+                    handleViewDetails(house._id);
                   }}
                 >
-                  View details
+                  <Eye className="mr-2 h-4 w-4" />
+                  View Details
                 </DropdownMenuItem>
-                <DropdownMenuItem>Edit</DropdownMenuItem>
-                <DropdownMenuItem className="text-red-600">
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEdit(house._id);
+                  }}
+                >
+                  <EditIcon className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    confirmDelete(house._id);
+                  }}
+                  className="text-red-600"
+                >
+                  {isActionLoading && houseToDelete === house._id ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -304,21 +442,8 @@ export function HousesTable({
     },
   ];
 
-  const filteredData = React.useMemo(() => {
-    let filtered = [...houses];
-    if (listingType) {
-      filtered = filtered.filter((house) => 
-        house.advertisementType.toLowerCase() === listingType
-      );
-    }
-    if (pending) {
-      filtered = filtered.filter((house) => house.status === "Pending");
-    }
-    return filtered;
-  }, [houses, listingType, pending]);
-
   const table = useReactTable({
-    data: filteredData,
+    data: houses,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -336,6 +461,15 @@ export function HousesTable({
     },
   });
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-lg">Loading houses...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       <div className="flex items-center py-4">
@@ -349,11 +483,15 @@ export function HousesTable({
         />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Columns <ArrowUpDown className="ml-2 h-4 w-4" />
+            <Button
+              variant="outline"
+              className="ml-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Columns
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
             {table
               .getAllColumns()
               .filter((column) => column.getCanHide())
@@ -366,6 +504,7 @@ export function HousesTable({
                     onCheckedChange={(value) =>
                       column.toggleVisibility(!!value)
                     }
+                    onClick={(e) => e.stopPropagation()}
                   >
                     {column.id}
                   </DropdownMenuCheckboxItem>
@@ -395,22 +534,13 @@ export function HousesTable({
             ))}
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  Loading houses...
-                </TableCell>
-              </TableRow>
-            ) : table.getRowModel().rows?.length ? (
+            {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  onClick={() => handleViewDetails(row.original._id)}
                   className="cursor-pointer"
-                  onClick={() => handleRowClick(row.original._id)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -459,6 +589,41 @@ export function HousesTable({
           </Button>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              house and all associated data (reviews, payments, etc).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteLoading}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDelete();
+              }}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                "Delete"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

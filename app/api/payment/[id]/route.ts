@@ -4,20 +4,20 @@ import Payment from "@/lib/models/payment.model";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
+  const { params } = context;
+  const id = params.id;
+
   try {
     await connectToDatabase();
-    
-    const payment = await Payment.findOne({ paymentId: params.id });
-    
+
+    const payment = await Payment.findOne({ paymentId: id });
+
     if (!payment) {
-      return NextResponse.json(
-        { error: "Payment not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Payment not found" }, { status: 404 });
     }
-    
+
     return NextResponse.json(payment);
   } catch (error) {
     console.error("Error fetching payment:", error);
@@ -26,4 +26,4 @@ export async function GET(
       { status: 500 }
     );
   }
-} 
+}
