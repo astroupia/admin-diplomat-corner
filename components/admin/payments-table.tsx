@@ -13,17 +13,13 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { ArrowUpDown, Check, MoreHorizontal, X } from "lucide-react";
-
+import { ArrowUpDown, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -35,229 +31,129 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type Payment = {
-  id: string;
-  amount: number;
-  status: "pending" | "approved" | "rejected";
-  paymentMethod: string;
-  transactionId: string;
-  imageUrl: string;
-  createdAt: string;
-  updatedAt: string;
+  _id: string;
+  paymentId: string;
+  servicePrice: number;
+  receiptUrl: string;
+  uploadedAt: string;
+  productId: string;
+  productType: "house" | "car";
+  userId: string;
 };
 
-const data: Payment[] = [
-  {
-    id: "PAY-1",
-    amount: 1000,
-    status: "pending",
-    paymentMethod: "Credit Card",
-    transactionId: "TRX-12345",
-    imageUrl: "/placeholder.svg",
-    createdAt: "2023-01-15T09:24:00",
-    updatedAt: "2023-01-15T09:24:00",
-  },
-  {
-    id: "PAY-2",
-    amount: 750,
-    status: "approved",
-    paymentMethod: "Bank Transfer",
-    transactionId: "TRX-67890",
-    imageUrl: "/placeholder.svg",
-    createdAt: "2023-01-14T11:32:00",
-    updatedAt: "2023-01-16T14:45:00",
-  },
-  {
-    id: "PAY-3",
-    amount: 500,
-    status: "rejected",
-    paymentMethod: "PayPal",
-    transactionId: "TRX-24680",
-    imageUrl: "/placeholder.svg",
-    createdAt: "2023-01-12T15:45:00",
-    updatedAt: "2023-01-12T15:45:00",
-  },
-];
+interface PaymentsTableProps {
+  data?: Payment[];
+  loading?: boolean;
+}
 
-export const columns: ColumnDef<Payment>[] = [
-  {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
-  },
-  {
-    accessorKey: "id",
-    header: "ID",
-    cell: ({ row }) => <div className="font-medium">{row.getValue("id")}</div>,
-  },
-  {
-    accessorKey: "amount",
-    header: ({ column }) => {
-      return (
+export function PaymentsTable({ data = [], loading = false }: PaymentsTableProps) {
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [rowSelection, setRowSelection] = React.useState({});
+
+  const columns: ColumnDef<Payment>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: "paymentId",
+      header: "Payment ID",
+      cell: ({ row }) => {
+        const id = row.getValue("paymentId") as string;
+        const shortId = id.length > 12 ? `${id.slice(0, 6)}...${id.slice(-4)}` : id;
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="font-mono cursor-pointer">{shortId}</span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <span className="font-mono">{id}</span>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      },
+    },
+    {
+      accessorKey: "productType",
+      header: "Product Type",
+      cell: ({ row }) => <div className="capitalize">{row.getValue("productType")}</div>,
+    },
+    {
+      accessorKey: "servicePrice",
+      header: ({ column }) => (
         <Button
           variant="ghost"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
-          Amount
+          Service Price
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      );
+      ),
+      cell: ({ row }) => {
+        const amount = Number.parseFloat(row.getValue("servicePrice"));
+        return <div className="font-medium">{amount} Birr</div>;
+      },
     },
-    cell: ({ row }) => {
-      const amount = Number.parseFloat(row.getValue("amount"));
-      const formatted = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(amount);
-
-      return <div className="font-medium">{formatted}</div>;
+    {
+      accessorKey: "uploadedAt",
+      header: "Uploaded At",
+      cell: ({ row }) => {
+        const date = new Date(row.getValue("uploadedAt"));
+        return <div>{date.toLocaleDateString()}</div>;
+      },
     },
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as
-        | "pending"
-        | "approved"
-        | "rejected";
-      return (
-        <Badge
-          className={
-            status === "approved"
-              ? "bg-green-500"
-              : status === "pending"
-              ? "bg-yellow-500"
-              : "bg-red-500"
-          }
-        >
-          {status.charAt(0).toUpperCase() + status.slice(1)}
-        </Badge>
-      );
+    {
+      accessorKey: "productId",
+      header: "Product ID",
+      cell: ({ row }) => <div>{row.getValue("productId")}</div>,
     },
-  },
-  {
-    accessorKey: "paymentMethod",
-    header: "Payment Method",
-    cell: ({ row }) => <div>{row.getValue("paymentMethod")}</div>,
-  },
-  {
-    accessorKey: "transactionId",
-    header: "Transaction ID",
-    cell: ({ row }) => <div>{row.getValue("transactionId")}</div>,
-  },
-  {
-    accessorKey: "imageUrl",
-    header: "Transaction Photo",
-    cell: ({ row }) => (
-      <div className="relative h-10 w-10">
-        <Image
-          src={row.getValue("imageUrl") || "/placeholder.svg"}
-          alt="Transaction Photo"
-          fill
-          className="rounded-md object-cover"
-        />
-      </div>
-    ),
-  },
-  {
-    accessorKey: "createdAt",
-    header: "Created At",
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("createdAt"));
-      return <div>{date.toLocaleDateString()}</div>;
+    {
+      accessorKey: "userId",
+      header: "User ID",
+      cell: ({ row }) => <div>{row.getValue("userId")}</div>,
     },
-  },
-  {
-    id: "actions",
-    enableHiding: false,
-    cell: ({ row }) => {
-      const payment = row.original;
-      const status = payment.status;
-
-      return (
-        <div className="flex items-center justify-end gap-2">
-          {status === "pending" && (
-            <>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                <Check className="h-4 w-4 text-green-500" />
-              </Button>
-              <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
-                <X className="h-4 w-4 text-red-500" />
-              </Button>
-            </>
-          )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => navigator.clipboard.writeText(payment.id)}
-              >
-                Copy Payment ID
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>View details</DropdownMenuItem>
-              <DropdownMenuItem>View transaction photo</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      );
+    {
+      accessorKey: "receiptUrl",
+      header: "Receipt",
+      cell: ({ row }) => {
+        const url = String(row.getValue("receiptUrl") || "");
+        return url ? (
+          <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">View</a>
+        ) : (
+          <span className="text-muted-foreground">-</span>
+        );
+      },
     },
-  },
-];
-
-interface PaymentsTableProps {
-  status?: "pending" | "approved" | "rejected";
-}
-
-export function PaymentsTable({ status }: PaymentsTableProps) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
-
-  const router = useRouter();
-
-  const filteredData = React.useMemo(() => {
-    let filtered = [...data];
-    if (status) {
-      filtered = filtered.filter((payment) => payment.status === status);
-    }
-    return filtered;
-  }, [status]);
+  ];
 
   const table = useReactTable({
-    data: filteredData,
+    data,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -275,20 +171,14 @@ export function PaymentsTable({ status }: PaymentsTableProps) {
     },
   });
 
-  const handleRowClick = (id: string) => {
-    router.push(`/admin/payments/${id}`);
-  };
-
   return (
     <div className="w-full">
       <div className="flex items-center py-4">
         <Input
           placeholder="Filter payments..."
-          value={
-            (table.getColumn("paymentMethod")?.getFilterValue() as string) ?? ""
-          }
+          value={(table.getColumn("paymentId")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
-            table.getColumn("paymentMethod")?.setFilterValue(event.target.value)
+            table.getColumn("paymentId")?.setFilterValue(event.target.value)
           }
           className="max-w-sm"
         />
@@ -334,13 +224,17 @@ export function PaymentsTable({ status }: PaymentsTableProps) {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  Loading payments...
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="cursor-pointer"
-                  onClick={() => handleRowClick(row.original.id)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
@@ -354,11 +248,8 @@ export function PaymentsTable({ status }: PaymentsTableProps) {
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
-                  No results.
+                <TableCell colSpan={columns.length} className="h-24 text-center">
+                  No payments found.
                 </TableCell>
               </TableRow>
             )}
@@ -367,8 +258,7 @@ export function PaymentsTable({ status }: PaymentsTableProps) {
       </div>
       <div className="flex items-center justify-end space-x-2 py-4">
         <div className="flex-1 text-sm text-muted-foreground">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+          {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
         </div>
         <div className="space-x-2">
           <Button

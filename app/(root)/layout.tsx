@@ -23,7 +23,9 @@ export default function Layout({
       <SidebarProvider>
         <div className="flex min-h-screen">
           <AdminSidebar />
-          {children}
+          <div className="flex-1 bg-white">
+            {children}
+          </div>
         </div>
       </SidebarProvider>
     </ToastProvider>
