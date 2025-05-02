@@ -38,6 +38,7 @@ interface House {
   essentials?: string[];
   currency: string;
   imageUrl?: string;
+  imageUrls?: string[];
   createdAt?: string;
   updatedAt?: string;
   paymentId: string;
@@ -60,7 +61,6 @@ interface HouseFormData {
   houseType: "House" | "Apartment" | "Guest House";
   essentials: string[];
   currency: string;
-  imageUrl?: string;
 }
 
 interface ManageHouseProps {
@@ -75,10 +75,23 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
   const router = useRouter();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(
-    initialData?.imageUrl || null
+
+  // Update for multiple files
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>(
+    initialData?.imageUrls ||
+      (initialData?.imageUrl ? [initialData.imageUrl] : [])
   );
+  const [removedImageUrls, setRemovedImageUrls] = useState<string[]>([]);
+  const [replaceImages, setReplaceImages] = useState(false);
+
+  useEffect(() => {
+    // Reset removedImageUrls when replaceImages is toggled to true
+    if (replaceImages) {
+      setRemovedImageUrls([]);
+    }
+  }, [replaceImages]);
+
   const [formData, setFormData] = useState<HouseFormData>({
     name: initialData?.name || "",
     bedroom: initialData?.bedroom || 0,
@@ -129,17 +142,47 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  // Update file handling for multiple files
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      setSelectedFiles((prev) => (replaceImages ? files : [...prev, ...files]));
+
+      // Generate previews for all selected files
+      const newPreviews: string[] = [];
+
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          newPreviews.push(reader.result as string);
+          if (newPreviews.length === files.length) {
+            setImagePreviews((prev) =>
+              replaceImages ? newPreviews : [...prev, ...newPreviews]
+            );
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     }
+  };
+
+  // Add a function to remove an image
+  const handleRemoveImage = (index: number) => {
+    // Check if this is an original image URL (vs a newly added file)
+    const removedPreview = imagePreviews[index];
+
+    if (
+      isEditMode &&
+      initialData?.imageUrls &&
+      initialData.imageUrls.includes(removedPreview)
+    ) {
+      // It's an original image URL - add to removedImageUrls array
+      setRemovedImageUrls((prev) => [...prev, removedPreview]);
+    }
+
+    // Remove from preview and selected files
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const toggleEssential = (item: string) => {
@@ -170,7 +213,11 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
         essentials: initialData.essentials || [],
         currency: initialData.currency,
       });
-      setImagePreview(initialData.imageUrl || null);
+      setImagePreviews(
+        initialData.imageUrls ||
+          (initialData.imageUrl ? [initialData.imageUrl] : [])
+      );
+      setSelectedFiles([]);
     } else {
       // Reset to empty form in create mode
       setFormData({
@@ -189,8 +236,8 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
         essentials: [],
         currency: "USD",
       });
-      setSelectedFile(null);
-      setImagePreview(null);
+      setSelectedFiles([]);
+      setImagePreviews([]);
     }
   };
 
@@ -229,10 +276,26 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
       apiFormData.append("visibility", "Public");
       apiFormData.append("status", "Active");
       apiFormData.append("timestamp", new Date().toISOString());
-      apiFormData.append("paymentId", "admin-created");
+      apiFormData.append("isAdmin", "true"); // Add flag to indicate admin is creating this
 
-      if (selectedFile) {
-        apiFormData.append("file", selectedFile);
+      // Add replaceImages flag if in edit mode
+      if (isEditMode) {
+        apiFormData.append("replaceImages", replaceImages.toString());
+
+        // If in edit mode and images were explicitly removed, send the removed URLs
+        if (removedImageUrls.length > 0) {
+          apiFormData.append(
+            "removedImageUrls",
+            JSON.stringify(removedImageUrls)
+          );
+        }
+      }
+
+      // Add multiple files
+      if (selectedFiles.length > 0) {
+        selectedFiles.forEach((file, index) => {
+          apiFormData.append(`files[${index}]`, file);
+        });
       }
 
       // Determine the endpoint based on whether we're editing or creating
@@ -536,25 +599,67 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
         <div>
           <Card>
             <CardHeader>
-              <CardTitle>House Image</CardTitle>
+              <CardTitle>House Images</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {isEditMode && (
+                  <div className="flex items-center mb-2">
+                    <Checkbox
+                      id="replaceImages"
+                      checked={replaceImages}
+                      onCheckedChange={() => setReplaceImages(!replaceImages)}
+                    />
+                    <Label
+                      htmlFor="replaceImages"
+                      className="ml-2 text-sm text-gray-600"
+                    >
+                      Replace existing images (unchecked will add to existing)
+                    </Label>
+                  </div>
+                )}
+
+                {/* Image Previews Grid */}
+                {imagePreviews.length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <div className="relative w-full h-32">
+                          <Image
+                            src={preview}
+                            alt={`House preview ${index + 1}`}
+                            fill
+                            className="object-cover rounded-md"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(index)}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                  {imagePreview ? (
-                    <div className="relative w-full h-48 mb-4">
-                      <Image
-                        src={imagePreview}
-                        alt="House preview"
-                        fill
-                        className="object-contain"
-                      />
+                  {loading ? (
+                    <div className="flex flex-col items-center justify-center h-48">
+                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                      <p className="mt-2 text-sm text-gray-500">Uploading...</p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-48">
                       <Home className="h-10 w-10 text-gray-400" />
                       <p className="mt-2 text-sm text-gray-500">
-                        No image selected
+                        {imagePreviews.length > 0
+                          ? "Add more images"
+                          : "No images selected"}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Select multiple images at once
                       </p>
                     </div>
                   )}
@@ -562,6 +667,7 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
                     type="file"
                     id="house-image"
                     accept="image/*"
+                    multiple
                     onChange={handleFileChange}
                     className="hidden"
                   />
@@ -574,7 +680,9 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
                     }
                     disabled={loading}
                   >
-                    {imagePreview ? "Change Image" : "Upload Image"}
+                    {imagePreviews.length > 0
+                      ? "Add More Images"
+                      : "Upload Images"}
                   </Button>
                 </div>
               </div>

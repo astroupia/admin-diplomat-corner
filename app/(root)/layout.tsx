@@ -2,10 +2,9 @@ import type React from "react";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { SidebarProvider } from "@/components/admin/sidebar-provider";
 import { ToastProvider } from "@/components/ui/toast";
-import "./globals.css";
+import "../globals.css";
 import { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,12 +19,13 @@ export default function Layout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html className={inter.className}>
-        <body>
-          <ToastProvider>{children}</ToastProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+    <ToastProvider>
+      <SidebarProvider>
+        <div className="flex min-h-screen">
+          <AdminSidebar />
+          {children}
+        </div>
+      </SidebarProvider>
+    </ToastProvider>
   );
 }

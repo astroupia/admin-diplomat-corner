@@ -23,6 +23,7 @@ import {
   Edit as EditIcon,
   Trash2,
   Loader2,
+  Home,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { getPrimaryImageUrl } from "@/lib/utils";
 
 export type House = {
   _id: string;
@@ -77,6 +79,7 @@ export type House = {
   essentials: string[];
   currency: string;
   imageUrl?: string;
+  imageUrls?: string[];
   createdAt?: string;
   updatedAt?: string;
   paymentId: string;
@@ -326,6 +329,30 @@ export function HousesTable({
           row.original.updatedAt || row.original.createdAt || ""
         );
         return <div>{date.toLocaleDateString()}</div>;
+      },
+    },
+    {
+      accessorKey: "images",
+      header: "Image",
+      cell: ({ row }) => {
+        const house = row.original;
+        const imageUrl = getPrimaryImageUrl(house);
+
+        return (
+          <div className="w-10 h-10 relative rounded-md overflow-hidden">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={house.name}
+                className="object-cover w-full h-full"
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                <Home className="h-5 w-5 text-gray-400" />
+              </div>
+            )}
+          </div>
+        );
       },
     },
     {

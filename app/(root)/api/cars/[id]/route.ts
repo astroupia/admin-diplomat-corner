@@ -5,10 +5,10 @@ import Payment from "@/lib/models/payment.model";
 import { auth } from "@clerk/nextjs/server";
 import { v4 as uuidv4 } from "uuid";
 
-const CPANEL_API_URL = process.env.CPANEL_API_URL;
-const CPANEL_USERNAME = process.env.CPANEL_USERNAME;
-const CPANEL_API_TOKEN = process.env.CPANEL_API_TOKEN;
-const PUBLIC_DOMAIN = process.env.PUBLIC_DOMAIN;
+const CPANEL_API_URL = "https://diplomatcorner.net:2083";
+const CPANEL_USERNAME = "diplomvv";
+const CPANEL_API_TOKEN = "2JL5W3RUMNY0KOX451GL2PPY4L8RX9RS";
+const PUBLIC_DOMAIN = "https://diplomatcorner.net";
 
 interface ApiResponse {
   success: boolean;
@@ -70,6 +70,59 @@ async function uploadImage(
   }
 }
 
+// Function to handle multiple image uploads
+async function uploadMultipleImages(
+  files: File[],
+  folder: "public_images" | "receipts"
+): Promise<{ success: boolean; publicUrls: string[]; error?: string }> {
+  try {
+    console.log(
+      `Starting upload of ${files.length} files to folder: ${folder}`
+    );
+
+    // Process each file one by one
+    const publicUrls: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      console.log(
+        `Uploading file ${i + 1}/${files.length}: ${files[i].name} (${
+          files[i].size
+        } bytes)`
+      );
+      const result = await uploadImage(files[i], folder);
+
+      if (!result.success) {
+        console.error(`Failed to upload file ${i + 1}: ${result.error}`);
+        return {
+          success: false,
+          publicUrls,
+          error: `Failed to upload file ${i + 1}/${files.length}: ${
+            result.error
+          }`,
+        };
+      }
+
+      console.log(`Successfully uploaded file ${i + 1} to ${result.publicUrl}`);
+      publicUrls.push(result.publicUrl as string);
+    }
+
+    console.log(`All ${files.length} files uploaded successfully`);
+    return {
+      success: true,
+      publicUrls,
+    };
+  } catch (error) {
+    console.error("Multiple image upload error:", error);
+    return {
+      success: false,
+      publicUrls: [],
+      error:
+        "Failed to upload multiple images: " +
+        (error instanceof Error ? error.message : String(error)),
+    };
+  }
+}
+
 // PUT handler
 export async function PUT(
   request: NextRequest,
@@ -79,16 +132,46 @@ export async function PUT(
   const id = params.id;
 
   try {
-    const userId = (await auth()).userId;
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized", paymentId: "" },
-        { status: 401 }
-      );
+    const formData = await request.formData();
+    const isAdmin = formData.get("isAdmin") === "true";
+
+    // Get userId from auth, or use "admin-user" for admin requests
+    let userId: string;
+    if (isAdmin) {
+      // Admin bypass - use default admin-user ID
+      userId = "admin-user";
+    } else {
+      // Regular user - require authentication
+      const authUserId = (await auth()).userId;
+      if (!authUserId) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized", paymentId: "" },
+          { status: 401 }
+        );
+      }
+      userId = authUserId;
     }
 
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
+    // Handle multiple files
+    const files: File[] = [];
+    const singleFile = formData.get("file") as File;
+
+    // First check for multiple files
+    for (const [key, value] of formData.entries()) {
+      if (key.startsWith("files") && value instanceof File) {
+        console.log(`[PUT] Found file with key: ${key}`);
+        files.push(value);
+      }
+    }
+
+    // If no multiple files found but a single file exists, use that
+    if (files.length === 0 && singleFile && singleFile instanceof File) {
+      console.log("[PUT] No files[] entries found, using single file instead");
+      files.push(singleFile);
+    }
+
+    console.log(`[PUT] Total files to process: ${files.length}`);
+
     const receiptFile = formData.get("receipt") as File;
 
     const carData = {
@@ -106,7 +189,24 @@ export async function PUT(
       price: Number(formData.get("price")),
       description: formData.get("description") as string,
       advertisementType: formData.get("advertisementType") as "Rent" | "Sale",
-      paymentMethod: Number(formData.get("paymentMethod")),
+      paymentMethod: (() => {
+        // Convert numeric value to string enum value
+        const methodValue = formData.get("paymentMethod") as string;
+
+        // Handle numeric values for backward compatibility
+        if (methodValue === "1") return "Daily";
+        if (methodValue === "2") return "Weekly";
+        if (methodValue === "3") return "Monthly";
+        if (methodValue === "4") return "Annually";
+
+        // If it's already a string value, use it directly
+        if (["Daily", "Weekly", "Monthly", "Annually"].includes(methodValue)) {
+          return methodValue;
+        }
+
+        // Default to Daily
+        return "Daily";
+      })(),
       currency: formData.get("currency") as string,
       tags: formData.get("tags") as string,
       updatedAt: new Date(),
@@ -131,25 +231,63 @@ export async function PUT(
       );
     }
 
-    // Check ownership
-    if (existingCar.userId !== userId) {
+    // Check ownership - admins can edit any car, regular users only their own
+    if (!isAdmin && existingCar.userId !== userId) {
       return NextResponse.json(
         { success: false, error: "Unauthorized", paymentId: "" },
         { status: 401 }
       );
     }
 
-    // Upload car image if provided
+    // Handle image uploads
+    let imageUrls = existingCar.imageUrls || [];
     let imageUrl = existingCar.imageUrl;
-    if (file) {
-      const uploadResult = await uploadImage(file, "public_images");
-      if (!uploadResult.success) {
+
+    // Check if we should replace existing images or add to them
+    const shouldReplaceImages = formData.get("replaceImages") === "true";
+
+    // Process any specifically removed image URLs (if not replacing all)
+    if (!shouldReplaceImages) {
+      const removedImageUrlsJson = formData.get("removedImageUrls") as string;
+      if (removedImageUrlsJson) {
+        try {
+          const removedImageUrls = JSON.parse(removedImageUrlsJson) as string[];
+          if (Array.isArray(removedImageUrls) && removedImageUrls.length > 0) {
+            console.log(
+              `Removing ${removedImageUrls.length} specific images:`,
+              removedImageUrls
+            );
+
+            // Filter out the removed image URLs
+            imageUrls = imageUrls.filter(
+              (url: string) => !removedImageUrls.includes(url)
+            );
+          }
+        } catch (error) {
+          console.error("Error parsing removedImageUrls:", error);
+        }
+      }
+    }
+
+    if (files.length > 0) {
+      const uploadResults = await uploadMultipleImages(files, "public_images");
+      if (!uploadResults.success) {
         return NextResponse.json(
-          { success: false, error: uploadResult.error, paymentId: "" },
+          { success: false, error: uploadResults.error, paymentId: "" },
           { status: 500 }
         );
       }
-      imageUrl = uploadResult.publicUrl;
+
+      if (shouldReplaceImages) {
+        // Replace all existing images
+        imageUrls = uploadResults.publicUrls;
+      } else {
+        // Add new images to existing ones
+        imageUrls = [...imageUrls, ...uploadResults.publicUrls];
+      }
+
+      // Update the primary image for backward compatibility
+      imageUrl = imageUrls.length > 0 ? imageUrls[0] : undefined;
     }
 
     // Upload receipt if provided
@@ -170,9 +308,16 @@ export async function PUT(
       id,
       {
         ...carData,
+        imageUrls: imageUrls,
         imageUrl,
       },
       { new: true }
+    );
+
+    console.log(
+      `Car updated with ID: ${updatedCar._id}, imageUrls: ${JSON.stringify(
+        imageUrls
+      )}, imageUrl: ${imageUrl}, number of images: ${imageUrls.length}`
     );
 
     // Update payment record if receipt was uploaded
@@ -196,7 +341,13 @@ export async function PUT(
   } catch (error) {
     console.error("Car update error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to update car", paymentId: "" },
+      {
+        success: false,
+        error:
+          "Failed to update car: " +
+          (error instanceof Error ? error.message : String(error)),
+        paymentId: "",
+      },
       { status: 500 }
     );
   }
@@ -393,45 +544,6 @@ export async function GET(
     console.error("Error fetching car:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch car" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-): Promise<NextResponse<ApiResponse>> {
-  try {
-    const { id } = params;
-    const { status } = await req.json();
-
-    if (!status || !["Active", "Pending"].includes(status)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid status" },
-        { status: 400 }
-      );
-    }
-
-    await connectToDatabase();
-    const car = await Car.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
-
-    if (!car) {
-      return NextResponse.json(
-        { success: false, error: "Car not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ success: true, ...car.toObject() });
-  } catch (error) {
-    console.error("Error updating car status:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to update car status" },
       { status: 500 }
     );
   }

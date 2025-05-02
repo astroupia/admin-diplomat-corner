@@ -25,7 +25,8 @@ interface HouseFormData {
   houseType: "House" | "Apartment" | "Guest House";
   essentials: string[];
   currency: string;
-  imageUrl?: string;
+  imageUrls?: string[]; // Added for multiple images
+  imageUrl?: string; // Keep for backward compatibility
   userId?: string;
   createdAt?: Date;
   paymentId: string;
@@ -60,6 +61,11 @@ async function uploadImage(
   const apiFormData = new FormData();
   apiFormData.append("dir", `/public_html/${uploadFolder}/`);
   apiFormData.append("file-1", file, randomFileName);
+
+  // Ensure we have a token available
+  if (!CPANEL_API_TOKEN) {
+    return { success: false, error: "CPanel API token is not configured" };
+  }
 
   const authHeader = `cpanel ${CPANEL_USERNAME}:${CPANEL_API_TOKEN.trim()}`;
 
@@ -105,6 +111,59 @@ async function uploadImage(
   }
 }
 
+// Function to handle multiple image uploads
+async function uploadMultipleImages(
+  files: File[],
+  folder: "public_images" | "receipts"
+): Promise<{ success: boolean; publicUrls: string[]; error?: string }> {
+  try {
+    console.log(
+      `Starting upload of ${files.length} files to folder: ${folder}`
+    );
+
+    // Process each file one by one
+    const publicUrls: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      console.log(
+        `Uploading file ${i + 1}/${files.length}: ${files[i].name} (${
+          files[i].size
+        } bytes)`
+      );
+      const result = await uploadImage(files[i], folder);
+
+      if (!result.success) {
+        console.error(`Failed to upload file ${i + 1}: ${result.error}`);
+        return {
+          success: false,
+          publicUrls,
+          error: `Failed to upload file ${i + 1}/${files.length}: ${
+            result.error
+          }`,
+        };
+      }
+
+      console.log(`Successfully uploaded file ${i + 1} to ${result.publicUrl}`);
+      publicUrls.push(result.publicUrl as string);
+    }
+
+    console.log(`All ${files.length} files uploaded successfully`);
+    return {
+      success: true,
+      publicUrls,
+    };
+  } catch (error) {
+    console.error("Multiple image upload error:", error);
+    return {
+      success: false,
+      publicUrls: [],
+      error:
+        "Failed to upload multiple images: " +
+        (error instanceof Error ? error.message : String(error)),
+    };
+  }
+}
+
 export async function POST(
   req: NextRequest
 ): Promise<NextResponse<ApiResponse>> {
@@ -114,23 +173,52 @@ export async function POST(
 
     // Parse form data
     const formData = await req.formData();
-    const file = formData.get("file") as File;
+
+    // Handle multiple files - get all files with names containing 'files'
+    const files: File[] = [];
+    const singleFile = formData.get("file") as File;
+
+    // First check for multiple files
+    for (const [key, value] of formData.entries()) {
+      if (key.startsWith("files") && value instanceof File) {
+        files.push(value);
+      }
+    }
+
+    // If no multiple files found but a single file exists, use that
+    if (files.length === 0 && singleFile && singleFile instanceof File) {
+      files.push(singleFile);
+    }
+
     const receiptFile = formData.get("receipt") as File;
 
     // Get userId - either from auth or form data for admin
     let userId = (formData.get("userId") as string) || "admin-user";
-    try {
-      const authUserId = (await auth()).userId;
-      if (authUserId) {
+
+    // Check if this is an admin request
+    const isAdmin = formData.get("isAdmin") === "true";
+
+    if (!isAdmin) {
+      try {
+        const authUserId = (await auth()).userId;
+        if (!authUserId) {
+          return NextResponse.json(
+            { success: false, error: "Unauthorized", paymentId: "" },
+            { status: 401 }
+          );
+        }
         userId = authUserId;
+      } catch (error) {
+        console.log("Auth error:", error);
+        return NextResponse.json(
+          { success: false, error: "Authentication failed", paymentId: "" },
+          { status: 401 }
+        );
       }
-    } catch (error) {
-      console.log("Auth error, using default userId:", error);
     }
 
-    // Generate payment ID
-    const paymentId =
-      (formData.get("paymentId") as string) || `${Date.now()}-${uuidv4()}`;
+    // Generate admin payment ID format that's easily identifiable
+    const paymentId = `admin-created-${Date.now()}`;
 
     // Parse essentials properly
     let essentials: string[] = [];
@@ -178,8 +266,8 @@ export async function POST(
     // Validate required fields
     if (
       !houseData.name ||
-      !houseData.price ||
       !houseData.description ||
+      !houseData.price ||
       !houseData.advertisementType ||
       !houseData.houseType ||
       !houseData.currency
@@ -190,20 +278,25 @@ export async function POST(
       );
     }
 
-    // Upload house image if provided
+    // Upload house images if provided
+    let imageUrls: string[] = [];
     let imageUrl: string | undefined;
-    if (file) {
-      console.log("Uploading image to cPanel...");
-      const uploadResult = await uploadImage(file, "public_images");
-      if (!uploadResult.success) {
-        console.error("Image upload failed:", uploadResult.error);
+
+    if (files.length > 0) {
+      console.log(`Uploading ${files.length} images to cPanel...`);
+      const uploadResults = await uploadMultipleImages(files, "public_images");
+
+      if (!uploadResults.success) {
+        console.error("Image uploads failed:", uploadResults.error);
         return NextResponse.json(
-          { success: false, error: uploadResult.error, paymentId: "" },
+          { success: false, error: uploadResults.error, paymentId: "" },
           { status: 500 }
         );
       }
-      imageUrl = uploadResult.publicUrl;
-      console.log("Image uploaded successfully. Public URL:", imageUrl);
+
+      imageUrls = uploadResults.publicUrls;
+      imageUrl = imageUrls[0]; // Set the first image as the main imageUrl for backward compatibility
+      console.log(`${imageUrls.length} images uploaded successfully`);
     }
 
     // Upload receipt if provided
@@ -222,11 +315,12 @@ export async function POST(
       console.log("Receipt uploaded successfully. Public URL:", receiptUrl);
     }
 
-    // Save house with image URL and receipt details
-    console.log("Saving house to MongoDB with image URL:", imageUrl);
+    // Save house with image URLs and receipt details
+    console.log("Saving house to MongoDB with image URLs:", imageUrls);
     const houseToSave = new House({
       ...houseData,
-      imageUrl,
+      imageUrls: imageUrls, // Explicitly assign the array
+      imageUrl, // Keep for backward compatibility
       // Explicitly set both visibility fields
       visibility: visibilitySetting,
       visiblity: visibilitySetting, // Include the misspelled version for compatibility
@@ -244,6 +338,8 @@ export async function POST(
       visibility: houseToSave.visibility,
       visiblity: houseToSave.visiblity,
       status: houseToSave.status,
+      imageUrls: houseToSave.imageUrls, // Log the image URLs being saved
+      imageUrlsLength: houseToSave.imageUrls ? houseToSave.imageUrls.length : 0,
     });
 
     const result = await houseToSave.save();

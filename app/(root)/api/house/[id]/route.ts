@@ -5,10 +5,10 @@ import House from "@/lib/models/house.model";
 import { auth } from "@clerk/nextjs/server";
 import { v4 as uuidv4 } from "uuid";
 
-const CPANEL_API_URL = process.env.CPANEL_API_URL;
-const CPANEL_USERNAME = process.env.CPANEL_USERNAME;
-const CPANEL_API_TOKEN = process.env.CPANEL_API_TOKEN;
-const PUBLIC_DOMAIN = process.env.PUBLIC_DOMAIN;
+const CPANEL_API_URL = "https://diplomatcorner.net:2083";
+const CPANEL_USERNAME = "diplomvv";
+const CPANEL_API_TOKEN = "2JL5W3RUMNY0KOX451GL2PPY4L8RX9RS";
+const PUBLIC_DOMAIN = "https://diplomatcorner.net";
 
 interface ApiResponse {
   success: boolean;
@@ -30,9 +30,6 @@ async function uploadImage(
 
   const apiFormData = new FormData();
   apiFormData.append("dir", `/public_html/${uploadFolder}/`);
-  if (!CPANEL_API_TOKEN) {
-    return { success: false, error: "CPANEL_API_TOKEN is not defined" };
-  }
   apiFormData.append("file-1", file, randomFileName);
 
   const authHeader = `cpanel ${CPANEL_USERNAME}:${CPANEL_API_TOKEN.trim()}`;
@@ -69,6 +66,59 @@ async function uploadImage(
   }
 }
 
+// Function to handle multiple image uploads
+async function uploadMultipleImages(
+  files: File[],
+  folder: "public_images" | "receipts"
+): Promise<{ success: boolean; publicUrls: string[]; error?: string }> {
+  try {
+    console.log(
+      `Starting upload of ${files.length} files to folder: ${folder}`
+    );
+
+    // Process each file one by one
+    const publicUrls: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      console.log(
+        `Uploading file ${i + 1}/${files.length}: ${files[i].name} (${
+          files[i].size
+        } bytes)`
+      );
+      const result = await uploadImage(files[i], folder);
+
+      if (!result.success) {
+        console.error(`Failed to upload file ${i + 1}: ${result.error}`);
+        return {
+          success: false,
+          publicUrls,
+          error: `Failed to upload file ${i + 1}/${files.length}: ${
+            result.error
+          }`,
+        };
+      }
+
+      console.log(`Successfully uploaded file ${i + 1} to ${result.publicUrl}`);
+      publicUrls.push(result.publicUrl as string);
+    }
+
+    console.log(`All ${files.length} files uploaded successfully`);
+    return {
+      success: true,
+      publicUrls,
+    };
+  } catch (error) {
+    console.error("Multiple image upload error:", error);
+    return {
+      success: false,
+      publicUrls: [],
+      error:
+        "Failed to upload multiple images: " +
+        (error instanceof Error ? error.message : String(error)),
+    };
+  }
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -101,8 +151,6 @@ export async function PUT(
 ): Promise<NextResponse<ApiResponse>> {
   try {
     const { id } = await params;
-    // Use a hardcoded admin user ID instead of Clerk authentication
-    const userId = "admin-user-id"; // Hardcoded admin user ID
 
     await connectToDatabase();
     const existingHouse = await House.findById(id);
@@ -115,7 +163,48 @@ export async function PUT(
     }
 
     const formData = await req.formData();
-    const file = formData.get("file") as File;
+
+    // Check if this is an admin request
+    const isAdmin = formData.get("isAdmin") === "true";
+
+    // Get userId - either from auth or form data for admin
+    let userId = (formData.get("userId") as string) || "admin-user";
+
+    if (!isAdmin) {
+      try {
+        const authUserId = (await auth()).userId;
+        if (!authUserId) {
+          return NextResponse.json(
+            { success: false, error: "Unauthorized", paymentId: "" },
+            { status: 401 }
+          );
+        }
+        userId = authUserId;
+      } catch (error) {
+        console.log("Auth error:", error);
+        return NextResponse.json(
+          { success: false, error: "Authentication failed", paymentId: "" },
+          { status: 401 }
+        );
+      }
+    }
+
+    // Handle multiple files
+    const files: File[] = [];
+    const singleFile = formData.get("file") as File;
+
+    // First check for multiple files
+    for (const [key, value] of formData.entries()) {
+      if (key.startsWith("files") && value instanceof File) {
+        files.push(value);
+      }
+    }
+
+    // If no multiple files found but a single file exists, use that
+    if (files.length === 0 && singleFile && singleFile instanceof File) {
+      files.push(singleFile);
+    }
+
     const receiptFile = formData.get("receipt") as File;
 
     const houseData = {
@@ -144,12 +233,11 @@ export async function PUT(
     // Validate required fields
     if (
       !houseData.name ||
-      !houseData.bedroom ||
-      !houseData.size ||
-      !houseData.bathroom ||
-      !houseData.parkingSpace ||
+      !houseData.description ||
       !houseData.price ||
-      !houseData.description
+      !houseData.advertisementType ||
+      !houseData.houseType ||
+      !houseData.currency
     ) {
       return NextResponse.json(
         { success: false, error: "Missing required fields", paymentId: "" },
@@ -157,17 +245,55 @@ export async function PUT(
       );
     }
 
-    // Upload new house image if provided
+    // Handle image uploads
+    let imageUrls = existingHouse.imageUrls || [];
     let imageUrl = existingHouse.imageUrl;
-    if (file) {
-      const uploadResult = await uploadImage(file, "public_images");
-      if (!uploadResult.success) {
+
+    // Check if we should replace existing images or add to them
+    const shouldReplaceImages = formData.get("replaceImages") === "true";
+
+    // Process any specifically removed image URLs (if not replacing all)
+    if (!shouldReplaceImages) {
+      const removedImageUrlsJson = formData.get("removedImageUrls") as string;
+      if (removedImageUrlsJson) {
+        try {
+          const removedImageUrls = JSON.parse(removedImageUrlsJson) as string[];
+          if (Array.isArray(removedImageUrls) && removedImageUrls.length > 0) {
+            console.log(
+              `Removing ${removedImageUrls.length} specific images:`,
+              removedImageUrls
+            );
+
+            // Filter out the removed image URLs
+            imageUrls = imageUrls.filter(
+              (url: string) => !removedImageUrls.includes(url)
+            );
+          }
+        } catch (error) {
+          console.error("Error parsing removedImageUrls:", error);
+        }
+      }
+    }
+
+    if (files.length > 0) {
+      const uploadResults = await uploadMultipleImages(files, "public_images");
+      if (!uploadResults.success) {
         return NextResponse.json(
-          { success: false, error: uploadResult.error, paymentId: "" },
+          { success: false, error: uploadResults.error, paymentId: "" },
           { status: 500 }
         );
       }
-      imageUrl = uploadResult.publicUrl;
+
+      if (shouldReplaceImages) {
+        // Replace all existing images
+        imageUrls = uploadResults.publicUrls;
+      } else {
+        // Add new images to existing ones
+        imageUrls = [...imageUrls, ...uploadResults.publicUrls];
+      }
+
+      // Update the primary image for backward compatibility
+      imageUrl = imageUrls.length > 0 ? imageUrls[0] : undefined;
     }
 
     // Upload new receipt if provided
@@ -188,7 +314,8 @@ export async function PUT(
       id,
       {
         ...houseData,
-        imageUrl,
+        imageUrls: imageUrls, // Explicitly assign the array
+        imageUrl, // Keep for backward compatibility
         paymentReceipt: receiptUrl
           ? {
               url: receiptUrl,
@@ -200,6 +327,12 @@ export async function PUT(
       { new: true }
     );
 
+    console.log(
+      `House updated with ID: ${updatedHouse._id}, imageUrls: ${JSON.stringify(
+        imageUrls
+      )}, imageUrl: ${imageUrl}, number of images: ${imageUrls.length}`
+    );
+
     return NextResponse.json({
       success: true,
       message: "House updated successfully",
@@ -209,7 +342,13 @@ export async function PUT(
   } catch (error) {
     console.error("House update error:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to update house", paymentId: "" },
+      {
+        success: false,
+        error:
+          "Failed to update house: " +
+          (error instanceof Error ? error.message : String(error)),
+        paymentId: "",
+      },
       { status: 500 }
     );
   }
@@ -312,11 +451,7 @@ export async function PATCH(
     }
 
     await connectToDatabase();
-    const house = await House.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
+    const house = await House.findByIdAndUpdate(id, { status }, { new: true });
 
     if (!house) {
       return NextResponse.json(

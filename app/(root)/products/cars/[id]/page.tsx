@@ -54,6 +54,7 @@ interface Car {
   maintenance: string;
   currency: string;
   imageUrl?: string;
+  imageUrls?: string[];
   createdAt?: string;
   updatedAt?: string;
   paymentId: string;
@@ -114,22 +115,79 @@ export default function CarDetailPage() {
 
         // Fetch payment details if paymentId exists
         if (carData.paymentId) {
-          try {
-            const paymentResponse = await fetch(
-              `/api/payment/${carData.paymentId}`
-            );
-            if (paymentResponse.ok) {
-              const paymentData = await paymentResponse.json();
-              setPayment(paymentData);
-            } else {
-              console.error(
-                "Failed to fetch payment:",
-                await paymentResponse.text()
+          // Check if car was created by admin (paymentId starts with "admin-created")
+          if (carData.paymentId.startsWith("admin-created")) {
+            // Set a special payment object for admin-created cars
+            setPayment({
+              _id: "admin-payment",
+              paymentId: carData.paymentId,
+              servicePrice: 0,
+              receiptUrl: "",
+              uploadedAt: carData.createdAt || new Date().toISOString(),
+              productId: carData._id,
+              productType: "car",
+              userId: "admin",
+              createdAt: carData.createdAt,
+              updatedAt: carData.updatedAt,
+            });
+          } else {
+            try {
+              const paymentResponse = await fetch(
+                `/api/payment/${carData.paymentId}`
               );
+              if (paymentResponse.ok) {
+                const paymentData = await paymentResponse.json();
+                setPayment(paymentData);
+              } else {
+                console.error(
+                  "Failed to fetch payment:",
+                  await paymentResponse.text()
+                );
+                // Set a placeholder payment for failed payment fetches
+                setPayment({
+                  _id: "unknown",
+                  paymentId: carData.paymentId,
+                  servicePrice: 0,
+                  receiptUrl: "",
+                  uploadedAt: carData.createdAt || new Date().toISOString(),
+                  productId: carData._id,
+                  productType: "car",
+                  userId: "unknown",
+                  createdAt: carData.createdAt,
+                  updatedAt: carData.updatedAt,
+                });
+              }
+            } catch (error) {
+              console.error("Error fetching payment:", error);
+              // Set a placeholder payment for failed payment fetches
+              setPayment({
+                _id: "error",
+                paymentId: carData.paymentId,
+                servicePrice: 0,
+                receiptUrl: "",
+                uploadedAt: carData.createdAt || new Date().toISOString(),
+                productId: carData._id,
+                productType: "car",
+                userId: "error",
+                createdAt: carData.createdAt,
+                updatedAt: carData.updatedAt,
+              });
             }
-          } catch (error) {
-            console.error("Error fetching payment:", error);
           }
+        } else {
+          // No paymentId, set a default payment object for admin-created cars
+          setPayment({
+            _id: "admin-created",
+            paymentId: "admin-created",
+            servicePrice: 0,
+            receiptUrl: "",
+            uploadedAt: carData.createdAt || new Date().toISOString(),
+            productId: carData._id,
+            productType: "car",
+            userId: "admin",
+            createdAt: carData.createdAt,
+            updatedAt: carData.updatedAt,
+          });
         }
       } catch (error) {
         console.error("Error fetching car:", error);
@@ -448,17 +506,62 @@ export default function CarDetailPage() {
           <Card>
             <CardContent className="p-3">
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="relative aspect-video rounded-md overflow-hidden border">
-                  {car.imageUrl ? (
-                    <Image
-                      src={car.imageUrl}
-                      alt={car.name}
-                      fill
-                      className="object-cover"
-                      priority
-                    />
+                {/* Image Gallery - Display multiple images if available */}
+                <div>
+                  {car.imageUrls && car.imageUrls.length > 0 ? (
+                    <div className="space-y-2">
+                      {/* Main Image */}
+                      <div className="relative aspect-video rounded-md overflow-hidden border">
+                        <Image
+                          src={car.imageUrls[0]}
+                          alt={car.name}
+                          fill
+                          className="object-cover"
+                          priority
+                        />
+                      </div>
+
+                      {/* Thumbnails Row */}
+                      {car.imageUrls.length > 1 && (
+                        <div className="grid grid-cols-4 gap-2">
+                          {car.imageUrls.map((imgUrl, idx) => (
+                            <div
+                              key={idx}
+                              className="relative aspect-square rounded-md overflow-hidden border cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => {
+                                // Move this image to the first position (could implement more sophisticated gallery)
+                                const newImageUrls = [...car.imageUrls!];
+                                const clickedImg = newImageUrls.splice(
+                                  idx,
+                                  1
+                                )[0];
+                                newImageUrls.unshift(clickedImg);
+                                setCar({ ...car, imageUrls: newImageUrls });
+                              }}
+                            >
+                              <Image
+                                src={imgUrl}
+                                alt={`${car.name} - Image ${idx + 1}`}
+                                fill
+                                className="object-cover"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : car.imageUrl ? (
+                    <div className="relative aspect-video rounded-md overflow-hidden border">
+                      <Image
+                        src={car.imageUrl}
+                        alt={car.name}
+                        fill
+                        className="object-cover"
+                        priority
+                      />
+                    </div>
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                    <div className="w-full h-full aspect-video flex items-center justify-center bg-gray-100 rounded-md">
                       <p className="text-gray-500">No image</p>
                     </div>
                   )}
@@ -490,69 +593,112 @@ export default function CarDetailPage() {
                 <CardTitle className="text-base">Payment Information</CardTitle>
               </CardHeader>
               <CardContent className="p-3 pt-0">
-                <div className="grid md:grid-cols-2 gap-3">
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <h3 className="font-medium text-sm">Payment ID</h3>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {payment.paymentId}
+                {/* Special display for admin-created cars */}
+                {payment.userId === "admin" ||
+                payment.paymentId.startsWith("admin-created") ? (
+                  <div className="bg-blue-50 p-3 rounded-md flex items-center border border-blue-100">
+                    <div className="p-2 rounded-full bg-blue-100 mr-3">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="text-blue-500"
+                      >
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-sm text-blue-700">
+                        Added by Administrator
+                      </h3>
+                      <p className="text-xs text-blue-600">
+                        This listing was created by a Diplomat Corner
+                        administrator
+                      </p>
+                      {car.createdAt && (
+                        <p className="text-xs text-blue-500 mt-1">
+                          Creation date:{" "}
+                          {new Date(car.createdAt).toLocaleDateString()}
                         </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid md:grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <h3 className="font-medium text-sm">Payment ID</h3>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {payment.paymentId}
+                          </p>
+                        </div>
+
+                        {payment.servicePrice > 0 && (
+                          <div>
+                            <h3 className="font-medium text-sm">
+                              Service Price
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {new Intl.NumberFormat("en-US", {
+                                style: "currency",
+                                currency: car?.currency || "USD",
+                              }).format(payment.servicePrice)}
+                            </p>
+                          </div>
+                        )}
                       </div>
 
-                      {payment.servicePrice > 0 && (
+                      {payment.uploadedAt && (
                         <div>
-                          <h3 className="font-medium text-sm">Service Price</h3>
+                          <h3 className="font-medium text-sm">Payment Date</h3>
                           <p className="text-sm text-muted-foreground">
-                            {new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: car?.currency || "USD",
-                            }).format(payment.servicePrice)}
+                            {new Date(payment.uploadedAt).toLocaleDateString()}
                           </p>
                         </div>
                       )}
                     </div>
 
-                    {payment.uploadedAt && (
+                    {payment.receiptUrl && (
                       <div>
-                        <h3 className="font-medium text-sm">Payment Date</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(payment.uploadedAt).toLocaleDateString()}
-                        </p>
+                        <h3 className="font-medium text-sm mb-1">Receipt</h3>
+                        <div className="relative aspect-[3/4] border rounded-md overflow-hidden h-32">
+                          <Image
+                            src={payment.receiptUrl}
+                            alt="Receipt"
+                            fill
+                            className="object-contain"
+                            priority
+                          />
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-1 h-7 text-xs px-2 py-0"
+                          asChild
+                        >
+                          <a
+                            href={payment.receiptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            View Full Receipt
+                          </a>
+                        </Button>
                       </div>
                     )}
                   </div>
-
-                  {payment.receiptUrl && (
-                    <div>
-                      <h3 className="font-medium text-sm mb-1">Receipt</h3>
-                      <div className="relative aspect-[3/4] border rounded-md overflow-hidden h-32">
-                        <Image
-                          src={payment.receiptUrl}
-                          alt="Receipt"
-                          fill
-                          className="object-contain"
-                          priority
-                        />
-                      </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-1 h-7 text-xs px-2 py-0"
-                        asChild
-                      >
-                        <a
-                          href={payment.receiptUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <ExternalLink className="h-3 w-3 mr-1" />
-                          View Full Receipt
-                        </a>
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                )}
               </CardContent>
             </Card>
           )}

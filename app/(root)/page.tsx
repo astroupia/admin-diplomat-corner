@@ -29,7 +29,7 @@ export default function DashboardPage() {
       try {
         const [housesResponse, carsResponse] = await Promise.all([
           fetch("/api/house"),
-          fetch("/api/cars")
+          fetch("/api/cars"),
         ]);
 
         if (!housesResponse.ok || !carsResponse.ok) {
@@ -56,13 +56,13 @@ export default function DashboardPage() {
     const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const lastMonthCount = items.filter(item => {
-      const createdAt = new Date(item.createdAt || '');
+    const lastMonthCount = items.filter((item) => {
+      const createdAt = new Date(item.createdAt || "");
       return createdAt >= lastMonth && createdAt < currentMonth;
     }).length;
 
-    const currentMonthCount = items.filter(item => {
-      const createdAt = new Date(item.createdAt || '');
+    const currentMonthCount = items.filter((item) => {
+      const createdAt = new Date(item.createdAt || "");
       return createdAt >= currentMonth;
     }).length;
 
@@ -71,8 +71,8 @@ export default function DashboardPage() {
   };
 
   const pendingApprovals = [
-    ...houses.filter(house => house.status === "Pending"),
-    ...cars.filter(car => car.status === "Pending")
+    ...houses.filter((house) => house.status === "Pending"),
+    ...cars.filter((car) => car.status === "Pending"),
   ].length;
 
   const totalProducts = houses.length + cars.length;
@@ -91,7 +91,6 @@ export default function DashboardPage() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="advertisements">Advertisements</TabsTrigger>
-          <TabsTrigger value="requests">Requests</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="space-y-4">
           <DashboardStats />

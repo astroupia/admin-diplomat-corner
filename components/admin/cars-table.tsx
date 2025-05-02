@@ -23,6 +23,7 @@ import {
   Edit as EditIcon,
   Trash2,
   Loader2,
+  Car,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useState, useEffect } from "react";
+import { getPrimaryImageUrl } from "@/lib/utils";
 
 export type Car = {
   _id: string;
@@ -75,6 +77,7 @@ export type Car = {
   createdAt?: string;
   updatedAt?: string;
   imageUrl?: string;
+  imageUrls?: string[];
   paymentId: string;
 };
 
@@ -318,6 +321,30 @@ export function CarsTable({
           row.original.updatedAt || row.original.createdAt || ""
         );
         return <div>{date.toLocaleDateString()}</div>;
+      },
+    },
+    {
+      accessorKey: "images",
+      header: "Image",
+      cell: ({ row }) => {
+        const car = row.original;
+        const imageUrl = getPrimaryImageUrl(car);
+
+        return (
+          <div className="w-10 h-10 relative rounded-md overflow-hidden">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={car.name}
+                className="object-cover w-full h-full"
+              />
+            ) : (
+              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                <Car className="h-5 w-5 text-gray-400" />
+              </div>
+            )}
+          </div>
+        );
       },
     },
     {

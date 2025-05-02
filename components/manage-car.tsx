@@ -16,6 +16,7 @@ import SuccessDialog from "./dialogs/success-dialog";
 
 interface ICarExtended extends ICar {
   servicePrice?: number;
+  imageUrls?: string[];
 }
 
 interface CarFormData {
@@ -81,17 +82,30 @@ const ManageCar: React.FC<ManageCarProps> = ({
     { name: string; label: string; valid: boolean }[]
   >([]);
   const [createdCarId, setCreatedCarId] = useState<string>("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(
-    initialData?.imageUrl || null
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>(
+    initialData?.imageUrls ||
+      (initialData?.imageUrl ? [initialData.imageUrl] : [])
   );
+  const [removedImageUrls, setRemovedImageUrls] = useState<string[]>([]);
+  const [replaceImages, setReplaceImages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isLoaded) {
-      setFormData((prev) => ({ ...prev, userId }));
+      setFormData((prev) => ({
+        ...prev,
+        userId: userId,
+      }));
     }
   }, [userId, isLoaded]);
+
+  useEffect(() => {
+    // Reset removedImageUrls when replaceImages is toggled to true
+    if (replaceImages) {
+      setRemovedImageUrls([]);
+    }
+  }, [replaceImages]);
 
   useEffect(() => {
     // When the advertisement type changes, set default payment method
@@ -123,15 +137,66 @@ const ManageCar: React.FC<ManageCarProps> = ({
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      console.log(`Selected ${files.length} files`);
+
+      // Store the new files
+      if (replaceImages) {
+        console.log(`Replacing all images with ${files.length} new files`);
+        setSelectedFiles(files);
+      } else {
+        console.log(
+          `Adding ${files.length} new files to existing ${selectedFiles.length} files`
+        );
+        setSelectedFiles((prev) => [...prev, ...files]);
+      }
+
+      // Generate previews for all selected files
+      const newPreviews: string[] = [];
+
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          newPreviews.push(reader.result as string);
+          if (newPreviews.length === files.length) {
+            if (replaceImages) {
+              setImagePreviews(newPreviews);
+            } else {
+              setImagePreviews((prev) => [...prev, ...newPreviews]);
+            }
+            console.log(
+              `Generated ${
+                newPreviews.length
+              } image previews, total previews: ${
+                replaceImages
+                  ? newPreviews.length
+                  : imagePreviews.length + newPreviews.length
+              }`
+            );
+          }
+        };
+        reader.readAsDataURL(file);
+      });
     }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    // Check if this is an original image URL (vs a newly added file)
+    const removedPreview = imagePreviews[index];
+
+    if (
+      isEditMode &&
+      initialData?.imageUrls &&
+      initialData.imageUrls.includes(removedPreview)
+    ) {
+      // It's an original image URL - add to removedImageUrls array
+      setRemovedImageUrls((prev) => [...prev, removedPreview]);
+    }
+
+    // Remove from preview and selected files
+    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleOptionChange = (field: string, value: string) => {
@@ -211,20 +276,49 @@ const ManageCar: React.FC<ManageCarProps> = ({
         }
       });
 
-      // Add essential admin fields with default values
+      // We're always in admin mode in the admin panel
       apiFormData.append("timestamp", new Date().toISOString());
-      apiFormData.append("paymentId", "admin-created");
+      // Don't send paymentId, let API generate it
       apiFormData.append("visiblity", "Public");
       apiFormData.append("status", "Active");
+      apiFormData.append("isAdmin", "true");
 
-      if (selectedFile) {
-        apiFormData.append("file", selectedFile);
+      // Ensure we have a proper user ID (even if it's just "admin-user")
+      if (!apiFormData.get("userId") || apiFormData.get("userId") === "guest") {
+        apiFormData.set("userId", "admin-user");
+      }
+
+      // Add replaceImages flag if in edit mode
+      if (isEditMode) {
+        apiFormData.append("replaceImages", replaceImages.toString());
+
+        // If in edit mode and images were explicitly removed, send the removed URLs
+        if (removedImageUrls.length > 0) {
+          apiFormData.append(
+            "removedImageUrls",
+            JSON.stringify(removedImageUrls)
+          );
+        }
+      }
+
+      // Add multiple files
+      if (selectedFiles.length > 0) {
+        // Log for debugging
+        console.log(
+          `Adding ${selectedFiles.length} files to form data with keys files[0], files[1], etc.`
+        );
+
+        selectedFiles.forEach((file, index) => {
+          apiFormData.append(`files[${index}]`, file);
+        });
       }
 
       const endpoint = isEditMode
         ? `/api/cars/${initialData?._id}`
         : "/api/cars/create";
       const method = isEditMode ? "PUT" : "POST";
+
+      console.log(`Sending ${selectedFiles.length} files to ${endpoint}`);
 
       const response = await fetch(endpoint, {
         method,
@@ -262,8 +356,8 @@ const ManageCar: React.FC<ManageCarProps> = ({
             currency: "ETB",
             tags: "",
           });
-          setSelectedFile(null);
-          setImagePreview(null);
+          setSelectedFiles([]);
+          setImagePreviews([]);
           if (fileInputRef.current) {
             fileInputRef.current.value = "";
           }
@@ -499,8 +593,64 @@ const ManageCar: React.FC<ManageCarProps> = ({
                   {/* Car Image Upload */}
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Car Image
+                      Car Images
                     </label>
+
+                    {isEditMode && (
+                      <div className="flex items-center mb-2">
+                        <input
+                          type="checkbox"
+                          id="replaceImages"
+                          checked={replaceImages}
+                          onChange={() => setReplaceImages(!replaceImages)}
+                          className="mr-2"
+                        />
+                        <label
+                          htmlFor="replaceImages"
+                          className="text-sm text-gray-600"
+                        >
+                          Replace existing images (unchecked will add to
+                          existing)
+                        </label>
+                      </div>
+                    )}
+
+                    {/* Image Previews Grid */}
+                    {imagePreviews.length > 0 && (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
+                        {imagePreviews.map((preview, index) => (
+                          <div key={index} className="relative h-24 group">
+                            <img
+                              src={preview}
+                              alt={`Car preview ${index + 1}`}
+                              className="w-full h-full object-cover rounded-lg border"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveImage(index)}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-4 w-4"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Upload Button */}
                     <div
                       className="h-40 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg hover:border-primary transition-colors relative overflow-hidden cursor-pointer"
                       onClick={() => fileInputRef.current?.click()}
@@ -512,54 +662,36 @@ const ManageCar: React.FC<ManageCarProps> = ({
                       }}
                       tabIndex={0}
                       role="button"
-                      aria-label="Upload car image"
+                      aria-label="Upload car images"
                     >
-                      {imagePreview ? (
-                        <>
-                          <Image
-                            src={imagePreview}
-                            alt="Car preview"
-                            width={400}
-                            height={400}
-                            className="absolute inset-0 w-full h-full object-cover"
-                            priority
-                          />
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                            <Upload className="w-8 h-8 text-white" />
-                            <p className="mt-2 text-sm text-white">
-                              Click to change image
-                            </p>
-                          </div>
-                        </>
+                      {isSending ? (
+                        <div className="flex flex-col items-center justify-center">
+                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary mb-2"></div>
+                          <p className="text-sm text-gray-500">Uploading...</p>
+                        </div>
                       ) : (
-                        <>
-                          <Upload className="w-8 h-8 text-gray-400" />
-                          <p className="mt-2 text-sm text-gray-500">
-                            Click to upload car image
+                        <div className="flex flex-col items-center justify-center p-4">
+                          <Car className="w-8 h-8 text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-500 text-center">
+                            {imagePreviews.length > 0
+                              ? "Click to add more images"
+                              : "Click to upload car images"}
                           </p>
-                        </>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Select multiple images at once
+                          </p>
+                        </div>
                       )}
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={handleFileChange}
+                        disabled={isSending}
+                      />
                     </div>
-                    <input
-                      type="file"
-                      name="file"
-                      accept="image/*"
-                      onChange={handleFileChange}
-                      ref={fileInputRef}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="mt-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm"
-                    >
-                      Choose Car Image
-                    </button>
-                    {selectedFile && (
-                      <span className="ml-2 text-sm text-gray-600">
-                        {selectedFile.name}
-                      </span>
-                    )}
                   </div>
                 </div>
 

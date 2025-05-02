@@ -21,6 +21,7 @@ export interface ICar {
   maintenance: string;
   currency: string;
   tags: string;
+  imageUrls?: string[];
   imageUrl?: string;
   paymentId: string;
   visiblity: "Private" | "Public";
@@ -38,8 +39,8 @@ const carSchema = new Schema(
     price: { type: Number, required: true },
     paymentMethod: {
       type: String,
-      required: true,
       enum: ["Daily", "Weekly", "Monthly", "Annually"],
+      default: "Daily",
     },
     mileage: { type: Number, required: true },
     speed: { type: Number, default: 0 },
@@ -54,10 +55,14 @@ const carSchema = new Schema(
     maintenance: { type: String, default: "" },
     currency: { type: String, default: "ETB" },
     tags: { type: String, default: "" },
+    imageUrls: [{ type: String }],
     imageUrl: { type: String },
     paymentId: {
       type: String,
       required: true,
+      default: function () {
+        return `admin-created-${Date.now()}`;
+      },
     },
     visiblity: {
       type: String,

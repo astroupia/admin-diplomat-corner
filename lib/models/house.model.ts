@@ -17,6 +17,7 @@ export interface IHouse {
   maintenance?: string;
   essentials?: string[];
   currency: string;
+  imageUrls?: string[];
   imageUrl?: string;
   createdAt?: Date;
   updatedAt?: Date;
@@ -52,10 +53,14 @@ const houseSchema = new Schema(
     maintenance: { type: String, default: "" },
     essentials: [{ type: String }],
     currency: { type: String, required: true, default: "USD" },
+    imageUrls: [{ type: String }],
     imageUrl: { type: String },
     paymentId: {
       type: String,
       required: true,
+      default: function () {
+        return `admin-created-${Date.now()}`;
+      },
     },
     visiblity: {
       type: String,
