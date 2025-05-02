@@ -23,12 +23,14 @@ export default function Layout({
     <ClerkProvider>
       <html lang="en">
         <body className={inter.className}>
-          <SidebarProvider>
-            <div className="flex min-h-screen">
-              <AdminSidebar />
-              {children}
-            </div>
-          </SidebarProvider>
+          <ToastProvider>
+            <SidebarProvider>
+              <div className="flex min-h-screen">
+                <AdminSidebar />
+                {children}
+              </div>
+            </SidebarProvider>
+          </ToastProvider>
         </body>
       </html>
     </ClerkProvider>

@@ -253,3 +253,42 @@ export async function DELETE(
     );
   }
 }
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+): Promise<NextResponse<ApiResponse>> {
+  try {
+    const { id } = params;
+    const { status } = await req.json();
+
+    if (!status || !["Active", "Pending"].includes(status)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid status" },
+        { status: 400 }
+      );
+    }
+
+    await connectToDatabase();
+    const house = await House.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!house) {
+      return NextResponse.json(
+        { success: false, error: "House not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, ...house.toObject() });
+  } catch (error) {
+    console.error("Error updating house status:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to update house status" },
+      { status: 500 }
+    );
+  }
+}
