@@ -2,7 +2,7 @@ import { Webhook } from "svix";
 import { headers } from "next/headers";
 import { WebhookEvent } from "@clerk/nextjs/server";
 import { connectToDatabase } from "@/lib/db-connect";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 // Define a more specific type for the Clerk user data
 interface ClerkUserData {
@@ -23,7 +23,19 @@ interface ClerkUserData {
   }>;
 }
 
-export async function POST(req: Request) {
+// Explicitly define all the HTTP methods that are allowed
+export async function GET() {
+  return new NextResponse(
+    "Webhook endpoint is working, but expects POST requests",
+    { status: 200 }
+  );
+}
+
+export async function POST(req: NextRequest) {
+  // Log incoming request details
+  console.log("Webhook received: POST request to /api/webhook/clerk");
+  console.log("Headers:", Object.fromEntries(req.headers.entries()));
+
   // You can find this in the Clerk Dashboard -> Webhooks -> choose the endpoint
   const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
@@ -34,11 +46,10 @@ export async function POST(req: Request) {
     return new NextResponse("Webhook secret is missing", { status: 500 });
   }
 
-  // Get the headers
-  const headerPayload = await headers();
-  const svix_id = headerPayload.get("svix-id");
-  const svix_timestamp = headerPayload.get("svix-timestamp");
-  const svix_signature = headerPayload.get("svix-signature");
+  // Get the headers from the request directly
+  const svix_id = req.headers.get("svix-id");
+  const svix_timestamp = req.headers.get("svix-timestamp");
+  const svix_signature = req.headers.get("svix-signature");
 
   // If there are no headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
@@ -49,8 +60,16 @@ export async function POST(req: Request) {
   }
 
   // Get the body
-  const payload = await req.json();
+  let payload;
+  try {
+    payload = await req.json();
+  } catch (error) {
+    console.error("Error parsing request body:", error);
+    return new NextResponse("Invalid JSON in request body", { status: 400 });
+  }
+
   const body = JSON.stringify(payload);
+  console.log("Webhook payload:", body);
 
   // Create a new Svix instance with your secret.
   const wh = new Webhook(WEBHOOK_SECRET);
@@ -66,7 +85,9 @@ export async function POST(req: Request) {
     }) as WebhookEvent;
   } catch (err) {
     console.error("Error verifying webhook:", err);
-    return new NextResponse("Error occurred", { status: 400 });
+    return new NextResponse("Error verifying webhook signature", {
+      status: 400,
+    });
   }
 
   const eventType = evt.type;
@@ -107,17 +128,24 @@ export async function POST(req: Request) {
 
       console.log("Prepared user data:", JSON.stringify(userDbData));
 
+      // Determine the API URL to use
+      const apiUrl = process.env.NEXT_PUBLIC_SERVER_URL || "";
+      if (!apiUrl) {
+        console.error("NEXT_PUBLIC_SERVER_URL is missing");
+        return NextResponse.json(
+          { error: "Server URL not configured" },
+          { status: 500 }
+        );
+      }
+
       // Call our API to create the user
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/users`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(userDbData),
-        }
-      );
+      const response = await fetch(`${apiUrl}/api/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userDbData),
+      });
 
       const result = await response.json();
 
@@ -186,17 +214,24 @@ export async function POST(req: Request) {
         userDbData.email = primaryEmail;
       }
 
+      // Determine the API URL to use
+      const apiUrl = process.env.NEXT_PUBLIC_SERVER_URL || "";
+      if (!apiUrl) {
+        console.error("NEXT_PUBLIC_SERVER_URL is missing");
+        return NextResponse.json(
+          { error: "Server URL not configured" },
+          { status: 500 }
+        );
+      }
+
       // Call our API to update the user
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/api/users`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(userDbData),
-        }
-      );
+      const response = await fetch(`${apiUrl}/api/users`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(userDbData),
+      });
 
       const result = await response.json();
 
@@ -227,5 +262,62 @@ export async function POST(req: Request) {
     }
   }
 
-  return new NextResponse("Webhook processed", { status: 200 });
+  if (eventType === "user.deleted") {
+    try {
+      // Extract the Clerk user ID
+      const userData = evt.data as unknown as ClerkUserData;
+      const { id } = userData;
+
+      // Determine the API URL to use
+      const apiUrl = process.env.NEXT_PUBLIC_SERVER_URL || "";
+      if (!apiUrl) {
+        console.error("NEXT_PUBLIC_SERVER_URL is missing");
+        return NextResponse.json(
+          { error: "Server URL not configured" },
+          { status: 500 }
+        );
+      }
+
+      // Call our API to delete the user
+      const response = await fetch(`${apiUrl}/api/users/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to delete user");
+      }
+
+      console.log("User deleted successfully:", JSON.stringify(result));
+      return NextResponse.json(
+        { message: "User deleted successfully" },
+        { status: 200 }
+      );
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      if (error instanceof Error) {
+        return NextResponse.json(
+          { error: "Failed to delete user", details: error.message },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json(
+        {
+          error: "Failed to delete user",
+          details: "An unknown error occurred",
+        },
+        { status: 500 }
+      );
+    }
+  }
+
+  // If we get here, we've received a webhook event we're not explicitly handling
+  console.log(`Unhandled webhook event type: ${eventType}`);
+  return new NextResponse(`Webhook event received: ${eventType}`, {
+    status: 200,
+  });
 }
