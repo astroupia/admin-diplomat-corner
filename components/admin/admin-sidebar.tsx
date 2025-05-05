@@ -153,7 +153,7 @@ export function AdminSidebar() {
               className="group"
             >
               <Image
-                src="/assets/images/sydek-logo.png"
+                src="/images/sydek-logo.png"
                 alt="sydek logo"
                 width={30}
                 height={30}
