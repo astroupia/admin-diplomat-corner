@@ -7,7 +7,7 @@ interface ApiResponse {
   success: boolean;
   error?: string;
   message?: string;
-  car?: any;
+  car?: typeof Car;
 }
 
 // PATCH handler for status updates

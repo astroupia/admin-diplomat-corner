@@ -21,8 +21,30 @@ export async function GET(req: Request) {
     const limit = parseInt(url.searchParams.get("limit") || "50");
     const skip = parseInt(url.searchParams.get("skip") || "0");
 
+    // Check if the isAdmin flag is set (for checking admin status only)
+    const checkAdmin = url.searchParams.get("checkAdmin") === "true";
+
+    if (checkAdmin) {
+      await connectToDatabase();
+      const user = await User.findOne({ clerkId: userId });
+
+      return NextResponse.json({
+        isAdmin: user?.role === "admin",
+        user: user
+          ? {
+              id: user._id,
+              clerkId: user.clerkId,
+              email: user.email,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              role: user.role,
+            }
+          : null,
+      });
+    }
+
     // Build query based on provided parameters
-    const query: Record<string, any> = {};
+    const query: Record<string, string> = {};
     if (clerkId) query.clerkId = clerkId;
     if (email) query.email = email;
     if (role) query.role = role;

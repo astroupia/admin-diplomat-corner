@@ -6,8 +6,8 @@ import { auth } from "@clerk/nextjs/server";
 interface ApiResponse {
   success: boolean;
   error?: string;
-  advertisements?: any[];
-  advertisement?: any;
+  advertisements?: (typeof Advertisement)[];
+  advertisement?: typeof Advertisement;
 }
 
 // GET handler - fetch all advertisements with optional filters
@@ -22,7 +22,11 @@ export async function GET(
     const priority = searchParams.get("priority");
     const advertisementType = searchParams.get("type");
 
-    const query: any = {};
+    const query: {
+      status?: string;
+      priority?: string;
+      advertisementType?: string;
+    } = {};
     if (status) query.status = status;
     if (priority) query.priority = priority;
     if (advertisementType) query.advertisementType = advertisementType;

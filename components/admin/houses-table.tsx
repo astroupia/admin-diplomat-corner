@@ -13,6 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import Image from "next/image";
 import {
   ArrowUpDown,
   Check,
@@ -48,7 +49,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useToast } from "@/components/ui/toast";
 import {
   AlertDialog,
@@ -117,7 +118,7 @@ export function HousesTable({
   const router = useRouter();
   const { showToast } = useToast();
 
-  const fetchHouses = async () => {
+  const fetchHouses = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch("/api/house");
@@ -151,11 +152,11 @@ export function HousesTable({
     } finally {
       setLoading(false);
     }
-  };
+  }, [listingType, pending, showToast]);
 
   useEffect(() => {
     fetchHouses();
-  }, [listingType, pending]);
+  }, [fetchHouses]);
 
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id);
@@ -341,9 +342,11 @@ export function HousesTable({
         return (
           <div className="w-10 h-10 relative rounded-md overflow-hidden">
             {imageUrl ? (
-              <img
+              <Image
                 src={imageUrl}
                 alt={house.name}
+                width={40}
+                height={40}
                 className="object-cover w-full h-full"
               />
             ) : (

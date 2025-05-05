@@ -28,6 +28,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import Image from "next/image";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -59,7 +60,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getPrimaryImageUrl } from "@/lib/utils";
 
 export type Car = {
@@ -111,7 +112,7 @@ export function CarsTable({
   const router = useRouter();
   const { showToast } = useToast();
 
-  const fetchCars = async () => {
+  const fetchCars = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch("/api/cars");
@@ -143,11 +144,11 @@ export function CarsTable({
     } finally {
       setLoading(false);
     }
-  };
+  }, [listingType, pending, showToast]);
 
   useEffect(() => {
     fetchCars();
-  }, [listingType, pending]);
+  }, [fetchCars]);
 
   const handleCopyId = (id: string) => {
     navigator.clipboard.writeText(id);
@@ -333,9 +334,11 @@ export function CarsTable({
         return (
           <div className="w-10 h-10 relative rounded-md overflow-hidden">
             {imageUrl ? (
-              <img
+              <Image
                 src={imageUrl}
                 alt={car.name}
+                width={40}
+                height={40}
                 className="object-cover w-full h-full"
               />
             ) : (

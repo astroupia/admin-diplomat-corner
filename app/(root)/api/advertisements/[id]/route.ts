@@ -6,12 +6,12 @@ import { auth } from "@clerk/nextjs/server";
 interface ApiResponse {
   success: boolean;
   error?: string;
-  advertisement?: any;
+  advertisement?: typeof Advertisement;
   analytics?: {
     clickCount: number;
     viewCount: number;
-    clicksOverTime?: any[];
-    viewsOverTime?: any[];
+    clicksOverTime?: Array<{ date: string; count: number }>;
+    viewsOverTime?: Array<{ date: string; count: number }>;
   };
 }
 
@@ -170,9 +170,11 @@ export async function DELETE(
 }
 
 // Helper function to process tracking data for analytics
-function processTrackingData(trackingData: any[]) {
+function processTrackingData(trackingData: Array<{ timestamp: string }>) {
   // Group data by date
-  const grouped = trackingData.reduce((acc, item) => {
+  const grouped = trackingData.reduce<
+    Record<string, Array<{ timestamp: string }>>
+  >((acc, item) => {
     const date = new Date(item.timestamp).toISOString().split("T")[0];
     if (!acc[date]) {
       acc[date] = [];
@@ -184,7 +186,7 @@ function processTrackingData(trackingData: any[]) {
   // Transform to array format for easier frontend consumption
   return Object.entries(grouped).map(([date, items]) => ({
     date,
-    count: (items as any[]).length,
+    count: (items as Array<{ timestamp: string }>).length,
     items,
   }));
 }

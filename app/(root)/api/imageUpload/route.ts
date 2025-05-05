@@ -39,7 +39,7 @@ interface CpanelResponse {
   };
   warnings?: string[] | null;
   messages?: string[] | null;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export async function POST(

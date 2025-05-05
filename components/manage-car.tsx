@@ -118,7 +118,7 @@ const ManageCar: React.FC<ManageCarProps> = ({
       // Only update if it's the default sale value
       setFormData((prev) => ({ ...prev, paymentMethod: "Monthly" })); // Monthly for rent
     }
-  }, [formData.advertisementType]);
+  }, [formData.advertisementType, formData.paymentMethod]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -620,7 +620,7 @@ const ManageCar: React.FC<ManageCarProps> = ({
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
                         {imagePreviews.map((preview, index) => (
                           <div key={index} className="relative h-24 group">
-                            <img
+                            <Image
                               src={preview}
                               alt={`Car preview ${index + 1}`}
                               className="w-full h-full object-cover rounded-lg border"

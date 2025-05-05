@@ -19,12 +19,15 @@ export async function GET(request: Request) {
 
     // Fetch all requests from the database
     const requests = await Request.find({});
-
     return NextResponse.json(requests, { status: 200 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to fetch requests:", error);
     return NextResponse.json(
-      { error: "Failed to fetch requests: " + error.message },
+      {
+        error:
+          "Failed to fetch requests: " +
+          (error instanceof Error ? error.message : String(error)),
+      },
       { status: 500 }
     );
   }
@@ -58,10 +61,14 @@ export async function POST(request: Request) {
       { success: true, requestId: newRequest._id.toString() },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to create request:", error);
     return NextResponse.json(
-      { error: "Failed to create request: " + error.message },
+      {
+        error:
+          "Failed to create request: " +
+          (error instanceof Error ? error.message : String(error)),
+      },
       { status: 500 }
     );
   }

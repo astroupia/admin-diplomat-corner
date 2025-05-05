@@ -51,6 +51,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 // Form schema based on the advertisement model
 const formSchema = z.object({
@@ -374,7 +375,17 @@ export default function CreateAdvertisementPage() {
                   <Label>Status</Label>
                   <Select
                     defaultValue="Draft"
-                    onValueChange={(value) => setValue("status", value as any)}
+                    onValueChange={(value) =>
+                      setValue(
+                        "status",
+                        value as
+                          | "Active"
+                          | "Inactive"
+                          | "Scheduled"
+                          | "Expired"
+                          | "Draft"
+                      )
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
@@ -482,7 +493,7 @@ export default function CreateAdvertisementPage() {
                   <RadioGroup
                     defaultValue="Medium"
                     onValueChange={(value) =>
-                      setValue("priority", value as any)
+                      setValue("priority", value as "High" | "Medium" | "Low")
                     }
                     className="flex gap-4"
                   >
@@ -582,7 +593,7 @@ export default function CreateAdvertisementPage() {
                           </div>
                         ) : imagePreview ? (
                           <div className="relative h-40">
-                            <img
+                            <Image
                               src={imagePreview}
                               alt="Advertisement Preview"
                               className="w-full h-full object-contain"

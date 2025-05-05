@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <rect width="48" height="48" fill="#4B5563" rx="24" />
+  <text 
+    x="24" 
+    y="30" 
+    font-family="Arial, sans-serif" 
+    font-size="20" 
+    font-weight="bold" 
+    fill="#F3F4F6" 
+    text-anchor="middle">
+    U
+  </text>
+</svg> 

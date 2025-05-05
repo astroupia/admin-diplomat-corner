@@ -13,13 +13,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  ArrowUpDown,
-  Car,
-  Home,
-  Loader2,
-  ChevronDown,
-} from "lucide-react";
+import { ArrowUpDown, Car, Home, Loader2, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { useCallback } from "react";
 
 export type Product = {
   _id: string;
@@ -57,13 +52,69 @@ interface ProductsTableProps {
   data?: Product[];
 }
 
-export function ProductsTable({ type, pending = false, data: propData }: ProductsTableProps) {
+export function ProductsTable({
+  type,
+  pending = false,
+  data: propData,
+}: ProductsTableProps) {
   const [data, setData] = React.useState<Product[]>(propData || []);
   const [loading, setLoading] = React.useState(!propData);
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  );
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+
+  const fetchProducts = useCallback(async () => {
+    try {
+      setLoading(true);
+      let url = type === "car" ? "/api/cars" : "/api/house";
+
+      // Add status filter if pending is true
+      if (pending) {
+        url += `?status=Pending`;
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to fetch products");
+      }
+
+      const result = await response.json();
+
+      // Handle different response structures
+      let products =
+        type === "car"
+          ? result.success
+            ? result.cars
+            : []
+          : Array.isArray(result)
+          ? result
+          : [];
+
+      // If we're showing pending items, filter out any non-pending items
+      if (pending) {
+        products = products.filter(
+          (product: Product) => product.status === "Pending"
+        );
+      }
+
+      // Add type information to each product
+      const typedProducts = products.map((product: Product) => ({
+        ...product,
+        type: type || "house", // Default to house if no type specified
+      }));
+
+      setData(typedProducts);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      setData([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [type, pending]);
 
   React.useEffect(() => {
     if (propData) {
@@ -71,50 +122,9 @@ export function ProductsTable({ type, pending = false, data: propData }: Product
       setLoading(false);
       return;
     }
-    const fetchProducts = async () => {
-      try {
-        setLoading(true);
-        let url = type === "car" ? "/api/cars" : "/api/house";
-        
-        // Add status filter if pending is true
-        if (pending) {
-          url += `?status=Pending`;
-        }
-
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error("Failed to fetch products");
-        }
-
-        const result = await response.json();
-        
-        // Handle different response structures
-        let products = type === "car" 
-          ? (result.success ? result.cars : [])
-          : (Array.isArray(result) ? result : []);
-
-        // If we're showing pending items, filter out any non-pending items
-        if (pending) {
-          products = products.filter((product: any) => product.status === "Pending");
-        }
-
-        // Add type information to each product
-        const typedProducts = products.map((product: any) => ({
-          ...product,
-          type: type || "house", // Default to house if no type specified
-        }));
-
-        setData(typedProducts);
-      } catch (error) {
-        console.error("Error fetching products:", error);
-        setData([]);
-      } finally {
-        setLoading(false);
-      }
-    };
 
     fetchProducts();
-  }, [type, pending]);
+  }, [propData, fetchProducts]);
 
   const columns: ColumnDef<Product>[] = [
     {
@@ -142,7 +152,9 @@ export function ProductsTable({ type, pending = false, data: propData }: Product
     {
       accessorKey: "_id",
       header: "ID",
-      cell: ({ row }) => <div className="font-medium">{row.getValue("_id")}</div>,
+      cell: ({ row }) => (
+        <div className="font-medium">{row.getValue("_id")}</div>
+      ),
     },
     {
       accessorKey: "name",
@@ -180,7 +192,10 @@ export function ProductsTable({ type, pending = false, data: propData }: Product
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => {
-        const status = row.getValue("status") as "Active" | "Pending" | "Inactive";
+        const status = row.getValue("status") as
+          | "Active"
+          | "Pending"
+          | "Inactive";
         return (
           <Badge
             className={

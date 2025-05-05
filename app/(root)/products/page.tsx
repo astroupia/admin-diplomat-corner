@@ -3,16 +3,44 @@
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Car, Home, Plus, Package, Loader2 } from "lucide-react";
-import { ProductsTable } from "@/components/admin/products-table";
+import { ProductsTable, type Product } from "@/components/admin/products-table";
 import { ProductCard } from "@/components/admin/products-card";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface ProductStats {
   total: number;
   houses: number;
   cars: number;
   pending: number;
+}
+
+// Interfaces for API responses
+interface CarsApiResponse {
+  success: boolean;
+  cars: CarData[];
+}
+
+interface CarData {
+  _id: string;
+  name: string;
+  status: "Pending" | "Active" | "Inactive";
+  price: number;
+  advertisementType?: "Sale" | "Rent";
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
+
+interface HouseData {
+  _id: string;
+  name: string;
+  status: "Pending" | "Active" | "Inactive";
+  price: number;
+  advertisementType?: "Sale" | "Rent";
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
 }
 
 export default function Page() {
@@ -23,57 +51,63 @@ export default function Page() {
     pending: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+
+  const fetchProductStats = useCallback(async () => {
+    try {
+      setLoading(true);
+      // Fetch both cars and houses data
+      const [carsResponse, housesResponse] = await Promise.all([
+        fetch("/api/cars"),
+        fetch("/api/house"),
+      ]);
+
+      if (!carsResponse.ok || !housesResponse.ok) {
+        throw new Error("Failed to fetch product data");
+      }
+
+      const carsData = (await carsResponse.json()) as CarsApiResponse;
+      const housesData = (await housesResponse.json()) as HouseData[];
+
+      // Handle different response structures
+      const cars = (carsData.success ? carsData.cars : []).map(
+        (car: CarData) => ({ ...car, type: "car" as const })
+      );
+      const houses = (Array.isArray(housesData) ? housesData : []).map(
+        (house: HouseData) => ({ ...house, type: "house" as const })
+      );
+
+      // Calculate stats
+      const total = cars.length + houses.length;
+      const pendingCars = cars.filter((car) => car.status === "Pending").length;
+      const pendingHouses = houses.filter(
+        (house) => house.status === "Pending"
+      ).length;
+
+      setStats({
+        total,
+        houses: houses.length,
+        cars: cars.length,
+        pending: pendingCars + pendingHouses,
+      });
+      setAllProducts([...houses, ...cars] as Product[]);
+    } catch (error) {
+      console.error("Error fetching product statistics:", error);
+      setStats({
+        total: 0,
+        houses: 0,
+        cars: 0,
+        pending: 0,
+      });
+      setAllProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchProductStats = async () => {
-      try {
-        setLoading(true);
-        // Fetch both cars and houses data
-        const [carsResponse, housesResponse] = await Promise.all([
-          fetch("/api/cars"),
-          fetch("/api/house"),
-        ]);
-
-        if (!carsResponse.ok || !housesResponse.ok) {
-          throw new Error("Failed to fetch product data");
-        }
-
-        const carsData = await carsResponse.json();
-        const housesData = await housesResponse.json();
-
-        // Handle different response structures
-        const cars = (carsData.success ? carsData.cars : []).map((car: any) => ({ ...car, type: "car" }));
-        const houses = (Array.isArray(housesData) ? housesData : []).map((house: any) => ({ ...house, type: "house" }));
-
-        // Calculate stats
-        const total = cars.length + houses.length;
-        const pendingCars = cars.filter((car: any) => car.status === "Pending").length;
-        const pendingHouses = houses.filter((house: any) => house.status === "Pending").length;
-
-        setStats({
-          total,
-          houses: houses.length,
-          cars: cars.length,
-          pending: pendingCars + pendingHouses,
-        });
-        setAllProducts([...houses, ...cars]);
-      } catch (error) {
-        console.error("Error fetching product statistics:", error);
-        setStats({
-          total: 0,
-          houses: 0,
-          cars: 0,
-          pending: 0,
-        });
-        setAllProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchProductStats();
-  }, []);
+  }, [fetchProductStats]);
 
   return (
     <div className="main-content main-content-expanded space-y-4 p-4 md:p-8">
@@ -116,28 +150,52 @@ export default function Page() {
             <ProductCard
               id="total"
               title="Total Products"
-              value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : stats.total.toString()}
+              value={
+                loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  stats.total.toString()
+                )
+              }
               icon={<Package className="h-4 w-4 text-muted-foreground" />}
               type="all"
             />
             <ProductCard
               id="houses"
               title="Houses"
-              value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : stats.houses.toString()}
+              value={
+                loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  stats.houses.toString()
+                )
+              }
               icon={<Home className="h-4 w-4 text-muted-foreground" />}
               type="house"
             />
             <ProductCard
               id="cars"
               title="Cars"
-              value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : stats.cars.toString()}
+              value={
+                loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  stats.cars.toString()
+                )
+              }
               icon={<Car className="h-4 w-4 text-muted-foreground" />}
               type="car"
             />
             <ProductCard
               id="pending"
               title="Pending Approval"
-              value={loading ? <Loader2 className="h-4 w-4 animate-spin" /> : stats.pending.toString()}
+              value={
+                loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  stats.pending.toString()
+                )
+              }
               icon={<Package className="h-4 w-4 text-muted-foreground" />}
               type="all"
             />

@@ -39,7 +39,7 @@ export default function RequestsTable() {
 
         const data = await response.json();
         setRequests(data);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.error("Failed to fetch requests:", error);
         setError("Failed to fetch requests. Please try again.");
       } finally {
@@ -120,6 +120,6 @@ export default function RequestsTable() {
   );
 }
 
-function useAuth(): { userId: any } {
+function useAuth(): { userId: string } {
   throw new Error("Function not implemented.");
 }

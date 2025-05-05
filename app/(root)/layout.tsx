@@ -5,6 +5,7 @@ import { ToastProvider } from "@/components/ui/toast";
 import "../globals.css";
 import { Metadata } from "next";
 import { Inter } from "next/font/google";
+import AdminProtected from "@/components/admin/admin-protected";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,14 +21,14 @@ export default function Layout({
 }>) {
   return (
     <ToastProvider>
-      <SidebarProvider>
-        <div className="flex min-h-screen">
-          <AdminSidebar />
-          <div className="flex-1 bg-white">
-            {children}
+      <AdminProtected redirectToPermissionDenied={true}>
+        <SidebarProvider>
+          <div className="flex min-h-screen">
+            <AdminSidebar />
+            <div className="flex-1 bg-white">{children}</div>
           </div>
-        </div>
-      </SidebarProvider>
+        </SidebarProvider>
+      </AdminProtected>
     </ToastProvider>
   );
 }

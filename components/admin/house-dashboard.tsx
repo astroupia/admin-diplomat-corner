@@ -45,7 +45,10 @@ export function HouseDashboard() {
     fetchStats();
   }, [showToast]);
 
-  const handleStatusChange = async (houseId: string, newStatus: "Pending" | "Active") => {
+  const handleStatusChange = async (
+    houseId: string,
+    newStatus: "Pending" | "Active"
+  ) => {
     try {
       const response = await fetch(`/api/house/${houseId}/status`, {
         method: "PATCH",
@@ -60,7 +63,7 @@ export function HouseDashboard() {
       }
 
       showToast(`House status updated to ${newStatus}`, "success");
-      
+
       // Refresh stats after status change
       const statsResponse = await fetch("/api/house/stats");
       if (statsResponse.ok) {
@@ -82,7 +85,9 @@ export function HouseDashboard() {
             <Home className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? "..." : stats.totalHouses}</div>
+            <div className="text-2xl font-bold">
+              {loading ? "..." : stats.totalHouses}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -91,7 +96,9 @@ export function HouseDashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? "..." : stats.forSaleHouses}</div>
+            <div className="text-2xl font-bold">
+              {loading ? "..." : stats.forSaleHouses}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -100,30 +107,36 @@ export function HouseDashboard() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? "..." : stats.forRentHouses}</div>
+            <div className="text-2xl font-bold">
+              {loading ? "..." : stats.forRentHouses}
+            </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Pending Approval
+            </CardTitle>
             <AlertCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? "..." : stats.pendingHouses}</div>
+            <div className="text-2xl font-bold">
+              {loading ? "..." : stats.pendingHouses}
+            </div>
           </CardContent>
         </Card>
       </div>
 
       <Tabs defaultValue="pending" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="pending">Pending Approval</TabsTrigger>
           <TabsTrigger value="all">All Houses</TabsTrigger>
+          <TabsTrigger value="pending">Pending Approval</TabsTrigger>
           <TabsTrigger value="for-sale">For Sale</TabsTrigger>
           <TabsTrigger value="for-rent">For Rent</TabsTrigger>
         </TabsList>
         <TabsContent value="pending" className="space-y-4">
-          <HousesTable 
-            pending={true} 
+          <HousesTable
+            pending={true}
             onApprove={(id: string) => handleStatusChange(id, "Active")}
             onReject={(id: string) => handleStatusChange(id, "Pending")}
           />
@@ -140,4 +153,4 @@ export function HouseDashboard() {
       </Tabs>
     </div>
   );
-} 
+}
