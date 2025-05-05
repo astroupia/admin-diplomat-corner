@@ -91,12 +91,6 @@ export default function CarsPage() {
         </div>
       </div>
       <Tabs defaultValue="all" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all">All Cars</TabsTrigger>
-          <TabsTrigger value="for-sale">For Sale</TabsTrigger>
-          <TabsTrigger value="for-rent">For Rent</TabsTrigger>
-          <TabsTrigger value="pending">Pending Approval</TabsTrigger>
-        </TabsList>
         <TabsContent value="all" className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
@@ -170,6 +164,12 @@ export default function CarsPage() {
           </div>
           <CarsTable />
         </TabsContent>
+        <TabsList>
+          <TabsTrigger value="all">All Cars</TabsTrigger>
+          <TabsTrigger value="for-sale">For Sale</TabsTrigger>
+          <TabsTrigger value="for-rent">For Rent</TabsTrigger>
+          <TabsTrigger value="pending">Pending Approval</TabsTrigger>
+        </TabsList>
         <TabsContent value="for-sale" className="space-y-4">
           <CarsTable listingType="Sale" />
         </TabsContent>

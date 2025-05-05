@@ -10,9 +10,9 @@
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
+    --primary: 100.91 51.6% 36.3%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
+    --secondary: 122.86 52.2% 89.2%;
     --secondary-foreground: 0 0% 9%;
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
@@ -30,6 +30,7 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
   }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
@@ -37,9 +38,9 @@
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
+    --primary: 100.91 51.6% 36.3%; /* #5B8F2D */
+    --primary-foreground: 0 0% 98%;
+    --secondary: 122.86 52.2% 89.2%; /* #DBF0DD */
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 14.9%;
     --muted-foreground: 0 0% 63.9%;
@@ -56,47 +57,32 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
   }
-
-  html,
-  body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    background-color: rgb(var(--background));
-    color: rgb(var(--foreground));
-  }
-}
-
-@layer components {
-  /* Example custom classes */
-  .admin-bg {
-    background-color: #e8f5e9;
-  }
-  .admin-card {
-    background-color: white;
-    border-radius: 0.5rem;
-    border: 1px solid rgb(var(--border));
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  }
-}
-
-@layer utilities {
-  .main-content {
-    margin-left: 4rem;
-    transition: margin-left 0.3s ease-in-out, width 0.3s ease-in-out;
-    width: calc(100% - 4rem);
-  }
-  body.sidebar-expanded .main-content {
-    margin-left: 16rem;
-    width: calc(100% - 16rem);
-  }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-[hsl(var(--border))];
   }
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.admin-bg {
+  @apply bg-[#e8f5e9];
+}
+
+.admin-card {
+  @apply bg-white rounded-lg border shadow-sm;
+}
+
+.main-content {
+  margin-left: 4rem;
+  transition: margin-left 0.3s ease-in-out, width 0.3s ease-in-out;
+  width: calc(100% - 4rem);
+}
+
+body.sidebar-expanded .main-content {
+  margin-left: 16rem;
+  width: calc(100% - 16rem);
 }

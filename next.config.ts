@@ -24,6 +24,11 @@ const nextConfig = {
         hostname: "images.clerk.dev",
         pathname: "**",
       },
+      {
+        protocol: "https",
+        hostname: "diplomatcorner.net",
+        pathname: "**",
+      },
     ],
   },
 };

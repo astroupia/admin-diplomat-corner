@@ -127,22 +127,23 @@ export function HouseDashboard() {
         </Card>
       </div>
 
-      <Tabs defaultValue="pending" className="space-y-4">
+      <Tabs defaultValue="all" className="space-y-4">
         <TabsList>
           <TabsTrigger value="all">All Houses</TabsTrigger>
           <TabsTrigger value="pending">Pending Approval</TabsTrigger>
+          <TabsTrigger value="active">Active</TabsTrigger>
           <TabsTrigger value="for-sale">For Sale</TabsTrigger>
           <TabsTrigger value="for-rent">For Rent</TabsTrigger>
         </TabsList>
+        <TabsContent value="all" className="space-y-4">
+          <HousesTable />
+        </TabsContent>
         <TabsContent value="pending" className="space-y-4">
           <HousesTable
             pending={true}
             onApprove={(id: string) => handleStatusChange(id, "Active")}
             onReject={(id: string) => handleStatusChange(id, "Pending")}
           />
-        </TabsContent>
-        <TabsContent value="all" className="space-y-4">
-          <HousesTable />
         </TabsContent>
         <TabsContent value="for-sale" className="space-y-4">
           <HousesTable listingType="sale" />
