@@ -23,7 +23,8 @@ type AdminStatusCache = {
 };
 
 const CACHE_KEY = "diplomat_admin_status";
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+// Increase TTL to 30 minutes to reduce API calls
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes (was 2 minutes)
 
 // Try to get cached admin status from sessionStorage
 const getCachedStatus = (): AdminStatusCache | null => {
@@ -84,8 +85,10 @@ export function useAdminCheck(): AdminCheckResult {
 
       // Check if we should use cache
       const now = Date.now();
-      if (!forceRefresh && now - lastCheckRef.current < 10000) {
-        // Minimum 10s between checks
+      // Increase minimum time between checks to 1 minute
+      if (!forceRefresh && now - lastCheckRef.current < 60000) {
+        // 1 minute (was 10 seconds)
+        // Minimum 1 min between checks
         return;
       }
 
@@ -159,7 +162,7 @@ export function useAdminCheck(): AdminCheckResult {
     }
   }, [isLoaded, checkAdminStatus]);
 
-  // Periodic check every 2 minutes
+  // Periodic check every 30 minutes (was every 2 minutes)
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
 
@@ -170,7 +173,7 @@ export function useAdminCheck(): AdminCheckResult {
     return () => clearInterval(intervalId);
   }, [isLoaded, isSignedIn, checkAdminStatus]);
 
-  // Visibility change handler
+  // Visibility change handler - only check if cache is expired
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
 

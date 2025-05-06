@@ -29,16 +29,9 @@ export default function AdminProtected({
   const router = useRouter();
   const [hasRedirected, setHasRedirected] = useState(false);
 
-  // Check once every 2 minutes rather than every minute
-  // to avoid excessive revalidation and page reloads
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      console.log("[AdminProtected] Periodic revalidation");
-      revalidate();
-    }, 2 * 60 * 1000); // Every 2 minutes
-
-    return () => clearInterval(intervalId);
-  }, [revalidate]);
+  // Removed periodic check interval - the useAdminCheck hook already handles this
+  // with an appropriate TTL and cache mechanism. This prevents double checking
+  // and unnecessary revalidations that might cause page refreshes.
 
   // Handle redirect once and only once
   useEffect(() => {

@@ -10,8 +10,8 @@ interface AdminCacheEntry {
 // Cache map with clerk ID as key and cache entry as value
 const adminStatusCache = new Map<string, AdminCacheEntry>();
 
-// TTL for admin status cache (5 minutes)
-const ADMIN_CACHE_TTL = 5 * 60 * 1000;
+// TTL for admin status cache (30 minutes instead of 5)
+const ADMIN_CACHE_TTL = 30 * 60 * 1000;
 
 /**
  * WARNING: This function should NOT be used in middleware!
@@ -62,11 +62,13 @@ export async function isUserAdmin(
  * Function that can be used in API routes to ensure admin access
  * @param clerkId The Clerk user ID to check
  * @param forceRefresh Force a refresh of the cached status
+ * @param isClientSide Set to true when called from client components to use longer cache
  * @returns An object with isAdmin flag and error message if applicable
  */
 export async function checkAdminAccess(
   clerkId: string,
-  forceRefresh = false
+  forceRefresh = false,
+  isClientSide = false
 ): Promise<{
   isAdmin: boolean;
   error?: string;
@@ -76,6 +78,21 @@ export async function checkAdminAccess(
       isAdmin: false,
       error: "Unauthorized: User not authenticated",
     };
+  }
+
+  // Use cached result for client-side calls to prevent unnecessary DB hits
+  if (isClientSide && !forceRefresh) {
+    const cachedEntry = adminStatusCache.get(clerkId);
+    const now = Date.now();
+
+    if (cachedEntry && now - cachedEntry.timestamp < ADMIN_CACHE_TTL) {
+      return {
+        isAdmin: cachedEntry.isAdmin,
+        ...(cachedEntry.isAdmin
+          ? {}
+          : { error: "Forbidden: Admin access required" }),
+      };
+    }
   }
 
   try {
