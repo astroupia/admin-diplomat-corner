@@ -91,6 +91,41 @@ const ManageCar: React.FC<ManageCarProps> = ({
   const [replaceImages, setReplaceImages] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Load saved form data from session storage if available
+  useEffect(() => {
+    if (!isEditMode) {
+      try {
+        const savedData = sessionStorage.getItem("manageCar-formData");
+        const savedPreviews = sessionStorage.getItem("manageCar-imagePreviews");
+
+        if (savedData) {
+          setFormData(JSON.parse(savedData));
+        }
+
+        if (savedPreviews) {
+          setImagePreviews(JSON.parse(savedPreviews));
+        }
+      } catch (error) {
+        console.error("Error loading form data from session storage:", error);
+      }
+    }
+  }, [isEditMode]);
+
+  // Save form data to session storage when it changes
+  useEffect(() => {
+    if (!isEditMode) {
+      try {
+        sessionStorage.setItem("manageCar-formData", JSON.stringify(formData));
+        sessionStorage.setItem(
+          "manageCar-imagePreviews",
+          JSON.stringify(imagePreviews)
+        );
+      } catch (error) {
+        console.error("Error saving form data to session storage:", error);
+      }
+    }
+  }, [formData, imagePreviews, isEditMode]);
+
   useEffect(() => {
     if (isLoaded) {
       setFormData((prev) => ({
@@ -337,6 +372,14 @@ const ManageCar: React.FC<ManageCarProps> = ({
         setShowSuccessDialog(true);
 
         if (!isEditMode) {
+          // Clear session storage after successful submission
+          try {
+            sessionStorage.removeItem("manageCar-formData");
+            sessionStorage.removeItem("manageCar-imagePreviews");
+          } catch (error) {
+            console.error("Error clearing session storage:", error);
+          }
+
           setFormData({
             name: "",
             year: 0,
