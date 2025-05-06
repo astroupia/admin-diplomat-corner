@@ -58,19 +58,8 @@ export default clerkMiddleware(async (auth, req) => {
       console.log(`User ${userId} accessing admin route: ${pathname}`);
     }
 
-    // Continue with the request
-    const response = NextResponse.next();
-
-    // Force revalidation of admin status for API routes that might change permissions
-    if (
-      pathname.includes("/api/users") &&
-      (req.method === "PATCH" || req.method === "POST")
-    ) {
-      console.log(`Setting no-cache headers for user API route: ${pathname}`);
-      response.headers.set("Cache-Control", "no-store, must-revalidate");
-    }
-
-    return response;
+    // Continue with the request - without setting cache control headers
+    return NextResponse.next();
   } catch (error) {
     console.error("Middleware error:", error);
     // For API routes, return JSON error

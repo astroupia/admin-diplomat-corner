@@ -109,6 +109,46 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
     currency: initialData?.currency || "USD",
   });
 
+  // Load saved form data from session storage if available
+  useEffect(() => {
+    if (!isEditMode) {
+      try {
+        const savedData = sessionStorage.getItem("manageHouse-formData");
+        const savedPreviews = sessionStorage.getItem(
+          "manageHouse-imagePreviews"
+        );
+
+        if (savedData) {
+          setFormData(JSON.parse(savedData));
+        }
+
+        if (savedPreviews) {
+          setImagePreviews(JSON.parse(savedPreviews));
+        }
+      } catch (error) {
+        console.error("Error loading form data from session storage:", error);
+      }
+    }
+  }, [isEditMode]);
+
+  // Save form data to session storage when it changes
+  useEffect(() => {
+    if (!isEditMode) {
+      try {
+        sessionStorage.setItem(
+          "manageHouse-formData",
+          JSON.stringify(formData)
+        );
+        sessionStorage.setItem(
+          "manageHouse-imagePreviews",
+          JSON.stringify(imagePreviews)
+        );
+      } catch (error) {
+        console.error("Error saving form data to session storage:", error);
+      }
+    }
+  }, [formData, imagePreviews, isEditMode]);
+
   const essentials = [
     "WiFi",
     "Furnished",
@@ -195,6 +235,16 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
   };
 
   const resetForm = () => {
+    // Clear session storage when resetting form
+    if (!isEditMode) {
+      try {
+        sessionStorage.removeItem("manageHouse-formData");
+        sessionStorage.removeItem("manageHouse-imagePreviews");
+      } catch (error) {
+        console.error("Error clearing session storage:", error);
+      }
+    }
+
     if (initialData && isEditMode) {
       // Reset to initial data in edit mode
       setFormData({
@@ -322,6 +372,16 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
           `House ${isEditMode ? "updated" : "created"} successfully!`,
           "success"
         );
+
+        // Clear session storage on successful submission
+        if (!isEditMode) {
+          try {
+            sessionStorage.removeItem("manageHouse-formData");
+            sessionStorage.removeItem("manageHouse-imagePreviews");
+          } catch (error) {
+            console.error("Error clearing session storage:", error);
+          }
+        }
 
         if (isEditMode) {
           router.push("/products/houses");
