@@ -18,6 +18,7 @@ import {
   Menu,
   Package,
   MessageCircle,
+  MessageSquareWarning,
   UserCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -84,13 +85,13 @@ export function AdminSidebar() {
           isOpen={isOpen}
           indent
         />
-        {/* <NavItem
+        <NavItem
           href="/advertisements"
           icon={<ImageIcon className="h-5 w-5" />}
           label="Advertisements"
           isActive={pathname.startsWith("/advertisements")}
           isOpen={isOpen}
-        /> */}
+        />
         <NavItem
           href="/payments"
           icon={<CreditCard className="h-5 w-5" />}
@@ -98,13 +99,13 @@ export function AdminSidebar() {
           isActive={pathname === "/payments"}
           isOpen={isOpen}
         />
-        {/* <NavItem
-          href="/statistics"
-          icon={<BarChart3 className="h-5 w-5" />}
-          label="Statistics"
-          isActive={pathname === "/statistics"}
+        <NavItem
+          href="/reports"
+          icon={<MessageSquareWarning className="h-5 w-5" />}
+          label="Reports"
+          isActive={pathname === "/reports"}
           isOpen={isOpen}
-        /> */}
+        />
         <NavItem
           href="/messages"
           icon={<MessageCircle className="h-5 w-5" />}

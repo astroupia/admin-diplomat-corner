@@ -13,7 +13,7 @@ export function DashboardHeader() {
           Manage your products and advertisements
         </p>
       </div>
-      <div className="flex items-center gap-2">
+      {/* <div className="flex items-center gap-2">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -26,7 +26,7 @@ export function DashboardHeader() {
           <Bell className="h-4 w-4" />
           <span className="sr-only">Notifications</span>
         </Button>
-      </div>
+      </div> */}
     </div>
   );
 }
