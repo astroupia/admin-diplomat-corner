@@ -17,12 +17,13 @@ interface AdvertisementCardProps {
     title: string;
     description: string;
     link: string;
-    status: string;
-    priority: string;
+    status: "Active" | "Inactive" | "Scheduled" | "Expired" | "Draft";
+    priority: "High" | "Medium" | "Low";
     advertisementType: string;
     imageUrl?: string;
     clickCount: number;
     viewCount: number;
+    hashtags?: string[];
   };
   showAnalytics?: boolean;
   isAdmin?: boolean;
@@ -35,6 +36,7 @@ export default function AdvertisementCard({
 }: AdvertisementCardProps) {
   const { user } = useUser();
   const [clickCount, setClickCount] = useState(advertisement.clickCount);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Track view when the advertisement is rendered
   useAdvertisementView(advertisement._id);
@@ -42,14 +44,21 @@ export default function AdvertisementCard({
   // Handle clicking the advertisement link
   const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault();
+    setIsLoading(true);
 
-    const newClickCount = await trackClick(advertisement._id);
-    if (newClickCount !== null) {
-      setClickCount(newClickCount);
+    try {
+      const newClickCount = await trackClick(advertisement._id);
+      if (newClickCount !== null) {
+        setClickCount(newClickCount);
+      }
+
+      // Open the link in a new tab
+      window.open(advertisement.link, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error("Error tracking click:", error);
+    } finally {
+      setIsLoading(false);
     }
-
-    // Open the link in a new tab
-    window.open(advertisement.link, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -61,6 +70,7 @@ export default function AdvertisementCard({
             alt={advertisement.title}
             fill
             className="object-cover"
+            unoptimized
           />
           <div className="absolute top-2 right-2 flex gap-2">
             <Badge
@@ -77,13 +87,30 @@ export default function AdvertisementCard({
       <CardContent className="p-4">
         <h3 className="text-lg font-semibold mb-2">{advertisement.title}</h3>
         <p className="text-gray-600 text-sm mb-3">
-          {advertisement.description}
+          {advertisement.description.length > 100
+            ? `${advertisement.description.substring(0, 100)}...`
+            : advertisement.description}
         </p>
 
         {showAnalytics && (
           <div className="flex gap-4 text-sm text-gray-500 mb-3">
             <div>Views: {advertisement.viewCount}</div>
             <div>Clicks: {clickCount}</div>
+          </div>
+        )}
+
+        {advertisement.hashtags && advertisement.hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-3">
+            {advertisement.hashtags.slice(0, 3).map((tag) => (
+              <Badge key={tag} variant="outline" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
+            {advertisement.hashtags.length > 3 && (
+              <span className="text-xs text-gray-500">
+                +{advertisement.hashtags.length - 3} more
+              </span>
+            )}
           </div>
         )}
       </CardContent>
@@ -93,8 +120,10 @@ export default function AdvertisementCard({
           size="sm"
           className="text-xs"
           onClick={handleClick}
+          disabled={isLoading}
         >
-          Visit Link <ExternalLink className="ml-1 h-3 w-3" />
+          {isLoading ? "Loading..." : "Visit Link"}
+          {!isLoading && <ExternalLink className="ml-1 h-3 w-3" />}
         </Button>
 
         {isAdmin && (

@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -51,7 +51,6 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 
 // Form schema based on the advertisement model
 const formSchema = z.object({
@@ -68,7 +67,6 @@ const formSchema = z.object({
   performanceMetrics: z.string().optional(),
   hashtags: z.array(z.string()).optional(),
   link: z.string().url({ message: "Please enter a valid URL" }),
-  imageUrl: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -79,12 +77,6 @@ export default function CreateAdvertisementPage() {
   const [hashtags, setHashtags] = useState<string[]>([]);
   const [hashtagInput, setHashtagInput] = useState("");
   const [previewType, setPreviewType] = useState("desktop");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -134,113 +126,18 @@ export default function CreateAdvertisementPage() {
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-
-      // Preview the image locally
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-
-      // Upload the file
-      try {
-        setIsUploading(true);
-        setUploadError(null);
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const response = await fetch("/api/advertisements/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || "Failed to upload image");
-        }
-
-        // Set the image URL in the form
-        setValue("imageUrl", result.imageUrl);
-        console.log("Image uploaded successfully:", result.imageUrl);
-      } catch (err) {
-        console.error("Error uploading image:", err);
-        setUploadError(
-          err instanceof Error ? err.message : "An unexpected error occurred"
-        );
-        // Clear the file input
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-      } finally {
-        setIsUploading(false);
-      }
-    }
-  };
-
-  const onSubmit = async (data: FormValues) => {
-    try {
-      setIsSubmitting(true);
-      setError(null);
-
-      // Prepare the data for submission
-      const submissionData = {
-        ...data,
-        // If hashtags is undefined, provide an empty array
-        hashtags: data.hashtags || hashtags || [],
-        // Convert date objects to ISO strings
-        startTime: data.startTime
-          ? new Date(data.startTime).toISOString()
-          : undefined,
-        endTime: data.endTime
-          ? new Date(data.endTime).toISOString()
-          : undefined,
-        // Include the image URL if available
-        imageUrl: data.imageUrl || undefined,
-      };
-
-      // Send the data to your API
-      const response = await fetch("/api/advertisements", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(submissionData),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to create advertisement");
-      }
-
-      // Successfully created advertisement
-      console.log("Advertisement created:", result.advertisement);
-
-      // Redirect to the advertisements list
-      router.push("/advertisements");
-    } catch (err) {
-      console.error("Error creating advertisement:", err);
-      setError(
-        err instanceof Error ? err.message : "An unexpected error occurred"
-      );
-      // Go back to the form step
-      setCurrentStep(1);
-    } finally {
-      setIsSubmitting(false);
-    }
+  const onSubmit = (data: FormValues) => {
+    console.log("Form submitted:", data);
+    // Here you would typically send the data to your API
+    router.push("/admin/advertisements");
   };
 
   return (
-    <div className="main-content p-6 md:p-8 max-w-6xl py-8 space-y-8 animate-in fade-in duration-500">
+    <div className="container max-w-6xl py-8 space-y-8 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/advertisements">
+          <Link href="/admin/advertisements">
             <Button variant="outline" size="icon" className="rounded-full">
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -250,17 +147,6 @@ export default function CreateAdvertisementPage() {
           </h1>
         </div>
       </div>
-
-      {/* Error Message */}
-      {error && (
-        <div
-          className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded relative"
-          role="alert"
-        >
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-        </div>
-      )}
 
       {/* Progress Steps */}
       <div className="relative">
@@ -375,17 +261,7 @@ export default function CreateAdvertisementPage() {
                   <Label>Status</Label>
                   <Select
                     defaultValue="Draft"
-                    onValueChange={(value) =>
-                      setValue(
-                        "status",
-                        value as
-                          | "Active"
-                          | "Inactive"
-                          | "Scheduled"
-                          | "Expired"
-                          | "Draft"
-                      )
-                    }
+                    onValueChange={(value) => setValue("status", value as any)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select status" />
@@ -437,7 +313,7 @@ export default function CreateAdvertisementPage() {
                               ? new Date(watchedValues.startTime)
                               : undefined
                           }
-                          onSelect={(date: Date | undefined) =>
+                          onSelect={(date) =>
                             setValue(
                               "startTime",
                               date ? date.toISOString() : undefined
@@ -475,7 +351,7 @@ export default function CreateAdvertisementPage() {
                               ? new Date(watchedValues.endTime)
                               : undefined
                           }
-                          onSelect={(date: Date | undefined) =>
+                          onSelect={(date) =>
                             setValue(
                               "endTime",
                               date ? date.toISOString() : undefined
@@ -493,7 +369,7 @@ export default function CreateAdvertisementPage() {
                   <RadioGroup
                     defaultValue="Medium"
                     onValueChange={(value) =>
-                      setValue("priority", value as "High" | "Medium" | "Low")
+                      setValue("priority", value as any)
                     }
                     className="flex gap-4"
                   >
@@ -568,161 +444,86 @@ export default function CreateAdvertisementPage() {
           <div className="grid gap-8 md:grid-cols-2 animate-in fade-in slide-in-from-left duration-500">
             <Card>
               <CardHeader>
-                <CardTitle>Advertisement Appearance</CardTitle>
+                <CardTitle>Advertisement Type</CardTitle>
                 <CardDescription>
-                  Configure how your advertisement will look
+                  Choose the format that best suits your campaign
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="image">Advertisement Image</Label>
-                    <div className="mt-2">
-                      <div
-                        className="border-2 border-dashed border-gray-300 rounded-lg p-4 cursor-pointer hover:border-primary transition-colors"
-                        onClick={() => fileInputRef.current?.click()}
-                      >
-                        {isUploading ? (
-                          <div className="flex items-center justify-center h-40">
-                            <div className="flex flex-col items-center">
-                              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
-                              <span className="mt-2 text-sm text-gray-500">
-                                Uploading...
-                              </span>
-                            </div>
-                          </div>
-                        ) : imagePreview ? (
-                          <div className="relative h-40">
-                            <Image
-                              src={imagePreview}
-                              alt="Advertisement Preview"
-                              className="w-full h-full object-contain"
-                            />
-                            <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="bg-white"
-                                onClick={() => fileInputRef.current?.click()}
-                              >
-                                Change Image
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-40">
-                            <Upload className="h-10 w-10 text-gray-400" />
-                            <p className="mt-2 text-sm text-gray-500">
-                              Click to upload an image for your advertisement
-                            </p>
-                            <p className="text-xs text-gray-400 mt-1">
-                              Recommended size: 1200x628px
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                      <input
-                        id="image"
-                        type="file"
-                        ref={fileInputRef}
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleFileChange}
-                      />
-                    </div>
-                    {uploadError && (
-                      <p className="text-red-500 text-sm mt-1">{uploadError}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="advertisementType">
-                      Advertisement Type
-                    </Label>
-                    <RadioGroup
-                      defaultValue={watchedValues.advertisementType || "banner"}
-                      onValueChange={(value) =>
-                        setValue("advertisementType", value)
-                      }
-                      className="grid grid-cols-1 gap-4"
+                <RadioGroup
+                  defaultValue={watchedValues.advertisementType || "banner"}
+                  onValueChange={(value) =>
+                    setValue("advertisementType", value)
+                  }
+                  className="grid grid-cols-1 gap-4"
+                >
+                  <div className="relative">
+                    <RadioGroupItem
+                      value="banner"
+                      id="banner"
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor="banner"
+                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
                     >
-                      <div className="relative">
-                        <RadioGroupItem
-                          value="banner"
-                          id="banner"
-                          className="peer sr-only"
-                        />
-                        <Label
-                          htmlFor="banner"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                        >
-                          <div className="w-full h-24 bg-gradient-to-r from-primary/20 to-primary/40 rounded-md flex items-center justify-center mb-4">
-                            <span className="text-sm font-medium">
-                              Banner Advertisement
-                            </span>
-                          </div>
-                          <div className="text-sm font-medium">
-                            Banner (728×90)
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Horizontal banner that appears at the top or bottom
-                            of a page
-                          </div>
-                        </Label>
+                      <div className="w-full h-24 bg-gradient-to-r from-primary/20 to-primary/40 rounded-md flex items-center justify-center mb-4">
+                        <span className="text-sm font-medium">
+                          Banner Advertisement
+                        </span>
                       </div>
-
-                      <div className="relative">
-                        <RadioGroupItem
-                          value="sidebar"
-                          id="sidebar"
-                          className="peer sr-only"
-                        />
-                        <Label
-                          htmlFor="sidebar"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                        >
-                          <div className="w-32 h-32 bg-gradient-to-r from-primary/20 to-primary/40 rounded-md flex items-center justify-center mb-4">
-                            <span className="text-sm font-medium">
-                              Sidebar Ad
-                            </span>
-                          </div>
-                          <div className="text-sm font-medium">
-                            Sidebar (300×250)
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Rectangle ad that appears in the sidebar of a page
-                          </div>
-                        </Label>
+                      <div className="text-sm font-medium">Banner (728×90)</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Horizontal banner that appears at the top or bottom of a
+                        page
                       </div>
-
-                      <div className="relative">
-                        <RadioGroupItem
-                          value="popup"
-                          id="popup"
-                          className="peer sr-only"
-                        />
-                        <Label
-                          htmlFor="popup"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                        >
-                          <div className="w-full h-40 bg-gradient-to-r from-primary/20 to-primary/40 rounded-md flex items-center justify-center mb-4">
-                            <span className="text-sm font-medium">
-                              Popup Advertisement
-                            </span>
-                          </div>
-                          <div className="text-sm font-medium">
-                            Popup (550×450)
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">
-                            Modal popup that appears over the content
-                          </div>
-                        </Label>
-                      </div>
-                    </RadioGroup>
+                    </Label>
                   </div>
-                </div>
+
+                  <div className="relative">
+                    <RadioGroupItem
+                      value="sidebar"
+                      id="sidebar"
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor="sidebar"
+                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                    >
+                      <div className="w-32 h-32 bg-gradient-to-r from-primary/20 to-primary/40 rounded-md flex items-center justify-center mb-4">
+                        <span className="text-sm font-medium">Sidebar Ad</span>
+                      </div>
+                      <div className="text-sm font-medium">
+                        Sidebar (300×250)
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Rectangle ad that appears in the sidebar of a page
+                      </div>
+                    </Label>
+                  </div>
+
+                  <div className="relative">
+                    <RadioGroupItem
+                      value="popup"
+                      id="popup"
+                      className="peer sr-only"
+                    />
+                    <Label
+                      htmlFor="popup"
+                      className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                    >
+                      <div className="w-full h-40 bg-gradient-to-r from-primary/20 to-primary/40 rounded-md flex items-center justify-center mb-4">
+                        <span className="text-sm font-medium">
+                          Popup Advertisement
+                        </span>
+                      </div>
+                      <div className="text-sm font-medium">Popup (550×450)</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Modal popup that appears over the content
+                      </div>
+                    </Label>
+                  </div>
+                </RadioGroup>
               </CardContent>
             </Card>
 
@@ -1186,20 +987,10 @@ export default function CreateAdvertisementPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setCurrentStep(3)}
-                  disabled={isSubmitting}
                 >
                   Back to Targeting
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <>
-                      <span className="animate-spin mr-2">⟳</span>
-                      Creating...
-                    </>
-                  ) : (
-                    "Create Advertisement"
-                  )}
-                </Button>
+                <Button type="submit">Create Advertisement</Button>
               </CardFooter>
             </Card>
           </div>
@@ -1212,7 +1003,7 @@ export default function CreateAdvertisementPage() {
               type="button"
               variant="outline"
               onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
-              disabled={currentStep === 1 || isSubmitting}
+              disabled={currentStep === 1}
             >
               Previous Step
             </Button>
@@ -1220,7 +1011,6 @@ export default function CreateAdvertisementPage() {
               type="button"
               onClick={() => setCurrentStep(Math.min(4, currentStep + 1))}
               className="gap-2"
-              disabled={isSubmitting}
             >
               {currentStep === 3 ? "Review" : "Next Step"}
               <ArrowRight className="h-4 w-4" />
