@@ -13,6 +13,8 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
+    dangerouslyAllowSVG: true,
+    contentDispositionType: "attachment",
     remotePatterns: [
       {
         protocol: "https",
@@ -27,6 +29,11 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "diplomatcorner.net",
+        pathname: "**",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
         pathname: "**",
       },
     ],

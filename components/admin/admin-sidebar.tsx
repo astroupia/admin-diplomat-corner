@@ -85,13 +85,13 @@ export function AdminSidebar() {
           isOpen={isOpen}
           indent
         />
-        <NavItem
+        {/* <NavItem
           href="/advertisements"
           icon={<ImageIcon className="h-5 w-5" />}
           label="Advertisements"
           isActive={pathname.startsWith("/advertisements")}
           isOpen={isOpen}
-        />
+        /> */}
         <NavItem
           href="/payments"
           icon={<CreditCard className="h-5 w-5" />}
