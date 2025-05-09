@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, isToday, isYesterday, isThisWeek } from "date-fns";
 import {
@@ -90,14 +90,6 @@ export default function MessagesPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchMessages();
-  }, []);
-
-  useEffect(() => {
-    filterMessages();
-  }, [messages, searchQuery, currentFolder]);
-
   const fetchMessages = async () => {
     try {
       setLoading(true);
@@ -117,7 +109,7 @@ export default function MessagesPage() {
     }
   };
 
-  const filterMessages = () => {
+  const filterMessages = useCallback(() => {
     let filtered = [...messages];
 
     // Filter by folder
@@ -149,7 +141,15 @@ export default function MessagesPage() {
     }
 
     setFilteredMessages(filtered);
-  };
+  }, [messages, searchQuery, currentFolder]);
+
+  useEffect(() => {
+    fetchMessages();
+  }, []);
+
+  useEffect(() => {
+    filterMessages();
+  }, [filterMessages]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
