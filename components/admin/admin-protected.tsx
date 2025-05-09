@@ -28,10 +28,7 @@ export default function AdminProtected({
   const { isAdmin, isLoading, error, revalidate } = useAdminCheck();
   const router = useRouter();
   const [hasRedirected, setHasRedirected] = useState(false);
-
-  // Removed periodic check interval - the useAdminCheck hook already handles this
-  // with an appropriate TTL and cache mechanism. This prevents double checking
-  // and unnecessary revalidations that might cause page refreshes.
+  const [isInitialCheck, setIsInitialCheck] = useState(true);
 
   // Handle redirect once and only once
   useEffect(() => {
@@ -39,7 +36,8 @@ export default function AdminProtected({
       !isLoading &&
       !isAdmin &&
       redirectToPermissionDenied &&
-      !hasRedirected
+      !hasRedirected &&
+      !isInitialCheck
     ) {
       console.log("[AdminProtected] Redirecting to permission denied page");
       setHasRedirected(true);
@@ -48,7 +46,21 @@ export default function AdminProtected({
       const url = `/permission-denied?t=${Date.now()}`;
       router.push(url);
     }
-  }, [isAdmin, isLoading, redirectToPermissionDenied, hasRedirected, router]);
+  }, [
+    isAdmin,
+    isLoading,
+    redirectToPermissionDenied,
+    hasRedirected,
+    router,
+    isInitialCheck,
+  ]);
+
+  // Mark initial check as complete after first load
+  useEffect(() => {
+    if (!isLoading) {
+      setIsInitialCheck(false);
+    }
+  }, [isLoading]);
 
   // While loading, show a loading component
   if (isLoading) {
@@ -56,7 +68,7 @@ export default function AdminProtected({
   }
 
   // If redirecting, show loading
-  if (!isAdmin && redirectToPermissionDenied) {
+  if (!isAdmin && redirectToPermissionDenied && !isInitialCheck) {
     return <LoadingComponent />;
   }
 
@@ -72,7 +84,7 @@ export default function AdminProtected({
       <PermissionDeniedScreen
         title="Admin Access Required"
         message="You do not have permission to access this content. Please contact the administrator if you believe this is an error."
-        onRetry={revalidate} // Add retry button that revalidates admin status
+        onRetry={revalidate}
       />
     );
   }

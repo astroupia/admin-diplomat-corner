@@ -21,11 +21,20 @@ export async function GET(
   { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const id = params.id;
+    const session = await auth();
+    const userId = session.userId;
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
 
     await connectToDatabase();
 
-    const advertisement = await Advertisement.findById(id);
+    const advertisement = await Advertisement.findById(params.id);
+
     if (!advertisement) {
       return NextResponse.json(
         { success: false, error: "Advertisement not found" },
@@ -60,7 +69,7 @@ export async function GET(
   } catch (error) {
     console.error("Error fetching advertisement:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to fetch advertisement" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -72,25 +81,22 @@ export async function PUT(
   { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const id = params.id;
+    const session = await auth();
+    const userId = session.userId;
 
-    // Authenticate user
-    let userId = "admin-user";
-    try {
-      const authUser = await auth();
-      if (authUser.userId) {
-        userId = authUser.userId;
-      }
-    } catch (error) {
-      console.log("Auth error, using default admin userId:", error);
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
     }
+
+    const body = await request.json();
 
     await connectToDatabase();
 
-    const data = await request.json();
+    const advertisement = await Advertisement.findById(params.id);
 
-    // Find the advertisement
-    const advertisement = await Advertisement.findById(id);
     if (!advertisement) {
       return NextResponse.json(
         { success: false, error: "Advertisement not found" },
@@ -98,28 +104,22 @@ export async function PUT(
       );
     }
 
-    // Update the advertisement, but don't modify clicks and views
-    const updatedAd = await Advertisement.findByIdAndUpdate(
-      id,
-      {
-        ...data,
-        // Keep the original tracking data
-        clicks: advertisement.clicks,
-        views: advertisement.views,
-        clickCount: advertisement.clickCount,
-        viewCount: advertisement.viewCount,
-      },
-      { new: true }
-    );
+    // Update the advertisement with the new data
+    Object.assign(advertisement, {
+      ...body,
+      timestamp: new Date().toISOString(),
+    });
+
+    await advertisement.save();
 
     return NextResponse.json({
       success: true,
-      advertisement: updatedAd,
+      advertisement,
     });
   } catch (error) {
     console.error("Error updating advertisement:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to update advertisement" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -131,23 +131,19 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const id = params.id;
+    const session = await auth();
+    const userId = session.userId;
 
-    // Authenticate user
-    let userId = "admin-user";
-    try {
-      const authUser = await auth();
-      if (authUser.userId) {
-        userId = authUser.userId;
-      }
-    } catch (error) {
-      console.log("Auth error, using default admin userId:", error);
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
     }
 
     await connectToDatabase();
 
-    // Find and delete the advertisement
-    const advertisement = await Advertisement.findByIdAndDelete(id);
+    const advertisement = await Advertisement.findById(params.id);
 
     if (!advertisement) {
       return NextResponse.json(
@@ -156,6 +152,8 @@ export async function DELETE(
       );
     }
 
+    await advertisement.deleteOne();
+
     return NextResponse.json({
       success: true,
       message: "Advertisement deleted successfully",
@@ -163,7 +161,7 @@ export async function DELETE(
   } catch (error) {
     console.error("Error deleting advertisement:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to delete advertisement" },
+      { success: false, error: "Internal server error" },
       { status: 500 }
     );
   }

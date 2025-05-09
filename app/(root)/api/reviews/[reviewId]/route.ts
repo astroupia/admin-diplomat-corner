@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/lib/db-connect";
 import Review from "@/lib/models/review.model";
 import { auth } from "@clerk/nextjs/server";
 import Notification from "@/lib/models/notification.model";
+import User from "@/lib/models/user.model";
 
 export async function DELETE(
   request: Request,
@@ -56,6 +57,48 @@ export async function DELETE(
     console.error("Error deleting review:", error);
     return NextResponse.json(
       { error: "Failed to delete review" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(
+  request: Request,
+  { params }: { params: { reviewId: string } }
+) {
+  try {
+    await connectToDatabase();
+
+    // Verify user is authenticated
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if the user is an admin
+    const user = await User.findOne({ clerkId: userId });
+    if (!user || user.role !== "admin") {
+      return NextResponse.json(
+        { error: "Unauthorized - Admin access required" },
+        { status: 403 }
+      );
+    }
+
+    // Find the review and populate the user field
+    const review = await Review.findById(params.reviewId).populate(
+      "user",
+      "firstName lastName"
+    );
+
+    if (!review) {
+      return NextResponse.json({ error: "Review not found" }, { status: 404 });
+    }
+
+    return NextResponse.json(review);
+  } catch (error) {
+    console.error("Error fetching review:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch review" },
       { status: 500 }
     );
   }

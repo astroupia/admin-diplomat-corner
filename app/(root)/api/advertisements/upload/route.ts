@@ -3,10 +3,10 @@ import { v4 as uuidv4 } from "uuid";
 import { auth } from "@clerk/nextjs/server";
 
 // Environment variables
-const CPANEL_API_URL = process.env.CPANEL_API_URL;
-const CPANEL_USERNAME = process.env.CPANEL_USERNAME;
-const CPANEL_API_TOKEN = process.env.CPANEL_API_TOKEN;
-const PUBLIC_DOMAIN = process.env.PUBLIC_DOMAIN;
+const CPANEL_API_URL = process.env.NEXT_PUBLIC_CPANEL_API_URL;
+const CPANEL_USERNAME = process.env.NEXT_PUBLIC_CPANEL_USERNAME;
+const CPANEL_API_TOKEN = process.env.NEXT_PUBLIC_CPANEL_API_TOKEN;
+const PUBLIC_DOMAIN = process.env.NEXT_PUBLIC_DOMAIN;
 
 interface ApiResponse {
   success: boolean;

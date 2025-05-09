@@ -666,7 +666,9 @@ const ManageCar: React.FC<ManageCarProps> = ({
                             <Image
                               src={preview}
                               alt={`Car preview ${index + 1}`}
-                              className="w-full h-full object-cover rounded-lg border"
+                              layout="fill"
+                              objectFit="cover"
+                              className="rounded-lg border"
                             />
                             <button
                               type="button"
@@ -693,48 +695,22 @@ const ManageCar: React.FC<ManageCarProps> = ({
                       </div>
                     )}
 
-                    {/* Upload Button */}
-                    <div
-                      className="h-40 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg hover:border-primary transition-colors relative overflow-hidden cursor-pointer"
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      ref={fileInputRef}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          fileInputRef.current?.click();
-                        }
-                      }}
-                      tabIndex={0}
-                      role="button"
-                      aria-label="Upload car images"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                     >
-                      {isSending ? (
-                        <div className="flex flex-col items-center justify-center">
-                          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-primary mb-2"></div>
-                          <p className="text-sm text-gray-500">Uploading...</p>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center justify-center p-4">
-                          <Car className="w-8 h-8 text-gray-400 mb-2" />
-                          <p className="text-sm text-gray-500 text-center">
-                            {imagePreviews.length > 0
-                              ? "Click to add more images"
-                              : "Click to upload car images"}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-1">
-                            Select multiple images at once
-                          </p>
-                        </div>
-                      )}
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        className="hidden"
-                        onChange={handleFileChange}
-                        disabled={isSending}
-                      />
-                    </div>
+                      <Upload className="w-5 h-5" />
+                      <span>Upload Images</span>
+                    </button>
                   </div>
                 </div>
 
