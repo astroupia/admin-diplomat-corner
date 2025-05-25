@@ -32,6 +32,11 @@ const nextConfig = {
         pathname: "**",
       },
       {
+        protocol: "https",
+        hostname: "media-api.diplomatcorner.net",
+        pathname: "**",
+      },
+      {
         protocol: "http",
         hostname: "localhost",
         pathname: "**",

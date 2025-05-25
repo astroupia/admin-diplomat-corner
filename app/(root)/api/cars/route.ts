@@ -6,10 +6,10 @@ import { auth } from "@clerk/nextjs/server";
 import { v4 as uuidv4 } from "uuid";
 import { checkAdminAccess } from "@/lib/auth-utils";
 
-const CPANEL_API_URL = "https://diplomatcorner.net:2083";
-const CPANEL_USERNAME = "diplomvv";
-const CPANEL_API_TOKEN = "2JL5W3RUMNY0KOX451GL2PPY4L8RX9RS";
-const PUBLIC_DOMAIN = "https://diplomatcorner.net";
+const CPANEL_API_URL = process.env.NEXT_PUBLIC_CPANEL_API_URL;
+const CPANEL_USERNAME = process.env.NEXT_PUBLIC_CPANEL_USERNAME;
+const CPANEL_API_TOKEN = process.env.NEXT_PUBLIC_CPANEL_API_TOKEN;
+const PUBLIC_DOMAIN = process.env.NEXT_PUBLIC_PUBLIC_DOMAIN;
 
 interface ApiResponse {
   success: boolean;
