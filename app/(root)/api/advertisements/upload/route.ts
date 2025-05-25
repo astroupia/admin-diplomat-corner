@@ -6,7 +6,7 @@ import { auth } from "@clerk/nextjs/server";
 const CPANEL_API_URL = process.env.NEXT_PUBLIC_CPANEL_API_URL;
 const CPANEL_USERNAME = process.env.NEXT_PUBLIC_CPANEL_USERNAME;
 const CPANEL_API_TOKEN = process.env.NEXT_PUBLIC_CPANEL_API_TOKEN;
-const PUBLIC_DOMAIN = process.env.NEXT_PUBLIC_DOMAIN;
+const PUBLIC_DOMAIN = process.env.NEXT_PUBLIC_PUBLIC_DOMAIN;
 
 interface ApiResponse {
   success: boolean;
