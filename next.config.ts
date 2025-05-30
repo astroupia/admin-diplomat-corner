@@ -15,6 +15,7 @@ const nextConfig = {
   images: {
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
