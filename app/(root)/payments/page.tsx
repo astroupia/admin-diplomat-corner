@@ -116,7 +116,7 @@ export default function PaymentsPage() {
   // Transform data to match the TablePayment type
   const tableData: TablePayment[] = payments.map((payment) => ({
     _id: payment._id || payment.id || "",
-    paymentId: payment.paymentId || "",
+    paymentId: payment.paymentId === "0" ? "3000" : payment.paymentId || "3000",
     servicePrice: payment.servicePrice,
     receiptUrl: payment.receiptUrl || "",
     uploadedAt: payment.uploadedAt,

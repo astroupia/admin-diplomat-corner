@@ -702,18 +702,6 @@ export default function MessagesPage() {
                             </p>
                           </div>
                         </div>
-
-                        <div className="flex flex-wrap gap-2">
-                          <Button className="gap-2">
-                            <Reply size={16} />
-                            <span>Reply</span>
-                          </Button>
-
-                          <Button variant="outline" className="gap-2">
-                            <Forward size={16} />
-                            <span>Forward</span>
-                          </Button>
-                        </div>
                       </div>
                     </div>
                   </div>

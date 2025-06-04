@@ -587,6 +587,9 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
                       <SelectContent>
                         <SelectItem value="USD">USD</SelectItem>
                         <SelectItem value="ETB">ETB</SelectItem>
+                        <SelectItem value="EUR">EUR</SelectItem>
+                        <SelectItem value="GBP">GBP</SelectItem>
+                        <SelectItem value="CAD">CAD</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
