@@ -589,7 +589,6 @@ const ManageHouse: React.FC<ManageHouseProps> = ({
                         <SelectItem value="ETB">ETB</SelectItem>
                         <SelectItem value="EUR">EUR</SelectItem>
                         <SelectItem value="GBP">GBP</SelectItem>
-                        <SelectItem value="CAD">CAD</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

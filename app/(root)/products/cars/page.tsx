@@ -162,14 +162,15 @@ export default function CarsPage() {
               </CardContent>
             </Card>
           </div>
+
+          <TabsList>
+            <TabsTrigger value="all">All Cars</TabsTrigger>
+            <TabsTrigger value="for-sale">For Sale</TabsTrigger>
+            <TabsTrigger value="for-rent">For Rent</TabsTrigger>
+            <TabsTrigger value="pending">Pending Approval</TabsTrigger>
+          </TabsList>
           <CarsTable />
         </TabsContent>
-        <TabsList>
-          <TabsTrigger value="all">All Cars</TabsTrigger>
-          <TabsTrigger value="for-sale">For Sale</TabsTrigger>
-          <TabsTrigger value="for-rent">For Rent</TabsTrigger>
-          <TabsTrigger value="pending">Pending Approval</TabsTrigger>
-        </TabsList>
         <TabsContent value="for-sale" className="space-y-4">
           <CarsTable listingType="Sale" />
         </TabsContent>
